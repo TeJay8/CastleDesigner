@@ -1,0 +1,27 @@
+
+#container {
+	float: left;
+	border: 1px solid black;
+
+    width: 700px;
+    height: 700px;
+}
+
+#buildings {
+	float: left;
+	border: 1px solid black;
+
+	width: 204px;
+	height: 700px;
+}
+
+.grid {
+	width: 13px;
+	height: 13px;
+	position: absolute;
+	margin: 0;
+	background-color: green;
+	z-index: 1;
+    border-left: 1px solid black;
+    border-top: 1px solid black;
+}
