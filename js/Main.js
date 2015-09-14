@@ -112,10 +112,13 @@ $(document).ready(function() {
 	var editor = new Editor(castle, "container", $("#buildings"));
 	
 });
+//Arcade Fire - Wake Up
+//Band of Horses = No one gonna love you
 //Dilly Dally - Desire
 //Jamie T - Sticks 'n' Stones
 //Modest Mouse - The ground Walks
 //Phantogram - Fall In Love
+//Radiohead = Just
 
 var pixels = 13;
 

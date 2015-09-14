@@ -23,14 +23,17 @@ var LandPanel = Class.extend({
 		this.resetGridData();
 	},
 
-	removeBuilding: function() {
+	removeBuilding: function(id) {
+		// TODO make a removeBuilding method
+		var building = this.findBuilding(id);
 
+		
+		this.repaint();
 	},
 
 	addBuilding: function(name, position, id) {
 		// TODO position middle of image?
 		// TODO get the checkers from the java project
-		// TODO make a removeBuilding method
 		// TODO link the addBuilding method to castle object grid
 		// TODO fix when the building moves the shadow doesnt get reset
 		var resource = this.castle.resources.get(name);
@@ -49,7 +52,8 @@ var LandPanel = Class.extend({
 			shadowBlur: 10,
 			shadowOffset: { x: 5, y: 5 },
 			shadowOpacity: 0.6,
-			startScale: 1
+			startScale: 1,
+			buildingType: name.toUpperCase()
 		};
 
 		if (name === "keep") item.draggable = false;
@@ -78,10 +82,6 @@ var LandPanel = Class.extend({
 		//console.log("repaint");
 		this._stage.draw();
 	},
-
-	
-
-
 
 	importData: function(text) {
 		this.castle.importData(text);

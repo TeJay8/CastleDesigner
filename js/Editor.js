@@ -9,7 +9,7 @@ var Editor = Class.extend({
 		this.castle = castle;
 		this._landPanel = new LandPanel(castle, landTarget);
 		this._buildingsPanel = new BuildingsPanel(castle, buildingTarget, function() {
-			self.addBuilding(this.name);
+			self.addBuilding(this.name, { x: 22, y: 22 });
 		});
 
 		this._selectedBuilding = BuildingType.type.STONE_WALL;
@@ -18,18 +18,25 @@ var Editor = Class.extend({
 		var self = this;
 		var landPanel = this._landPanel;
 		var stage = this._landPanel._stage;
+		var coordsOld;
 
 		// landPanel events
 		stage.on("click", function(evt) {
-			console.log("click");
-			console.dir(evt);
+			//console.log("click");
+			//console.dir(evt);
+			var shape = evt.target;
 			var button = false;
 
+			self.setSelectedBuilding(shape.getAttr("buildingType"));
 			self.changeGridData(evt, button);
 		});
 
 		stage.on("dragstart", function(evt) {
 			var shape = evt.target;
+
+			//TODO rotation custem animation for continue
+			coordsOld = self._getCoords(shape.getPosition());
+			self.setSelectedBuilding(shape.getAttr("buildingType"));
 
 			shape.moveTo(landPanel._dragLayer);
 			stage.draw();
@@ -45,6 +52,12 @@ var Editor = Class.extend({
 
 		stage.on("dragend", function(evt) {
 			var shape = evt.target;
+			var coords = self._getCoords(shape.getPosition());
+
+			if (self._isValidCoords(coords)) {
+				shape.setPosition(coords);
+				self.moveBuilding(name, coordsOld, coords);
+			}
 
 			shape.moveTo(landPanel._layer);
 			stage.draw();
@@ -72,35 +85,68 @@ var Editor = Class.extend({
 		});
 
 		// TODO this is just a test can be deleted later
+		this.setSelectedBuilding("GREAT_TOWER");
+
 		for (var i = 0; i < 8; i++) {
-			this.addBuilding("great_tower", { x: 34.5 + (83 * i), y: 34.5 });
+			var position = this._getCoords({ x: 34.5 + (83 * i), y: 34.5 });
+
+			this.addBuilding("great_tower", position);
 		}
 	},
 
 	setSelectedBuilding: function(buildingType) {
-		// selectedBuilding
+		// _selectedBuilding
 		if (typeof(buildingType) === "undefined") {
 			console.error("Invalid argument undefined to setSelectedBuilding");
 		}
 
-		this.selectedBuilding = building;
+		this._selectedBuilding = BuildingType.type[buildingType];
 	},
 
-	addBuilding: function(name, buildingCoords) {
+	addBuilding: function(name, buildingCoords, id) {
 		if (buildingCoords === undefined) {
-			buildingCoords = { x: 48, y: 26 };
+			return false;
 		}
 
-		// TODO check if getNewId only get used once when adding a new building
-		var id = this.castle._getNewId();
-		var type = BuildingType.type[name.toUpperCase()];
+		if (typeof(id) === "undefined") {
+			id = this.castle._getNewId();
+		}
+		
+		if (this._isValidCoords(buildingCoords)) {
+			// TODO check if getNewId only get used once when adding a new building
+			var type = BuildingType.type[name.toUpperCase()];
 
-		this._landPanel.addBuilding(name, buildingCoords, id);
-		this.castle.addBuilding(type, buildingCoords, id);
+			this._landPanel.addBuilding(name, buildingCoords, id);
+			this.castle.addBuilding(type, buildingCoords, id);
+
+			return true;
+		}
+		
+		return false;
 	},
 
-	removeBuilding: function(tileBuilding) {
-		console.log("removing building needs to add this method");
+	removeBuilding: function(name, buildingCoords, id) {
+		var buildingTiles = this.castle.getBuilding(buildingCoords);
+
+		if (buildingTiles) {
+
+			this._landPanel.removeBuilding(name, buildingCoords, id);
+			this.castle.removeBuilding(buildingTiles);
+
+			return true; // if succeeds
+		}
+
+		return false;
+	},
+
+	moveBuilding: function(name, oldCoords, newCoords) {
+		if (this.removeBuilding(name, oldCoords)) {
+			// first remove building
+			if (!this.addBuilding(name, newCoords)) {
+				//
+				this.addBuilding(name, oldCoords);
+			}
+		}
 	},
 
 	changeGridData: function(coords, button) {
@@ -109,8 +155,8 @@ var Editor = Class.extend({
 		if (this._isValidCoords(coords)) {
 			// button true is left click
 			if (button) {
-				var dimension = this.selectedBuilding.getDimension();
-				var hotspot = this.selectedBuilding.getHotspot();
+				var dimension = this._selectedBuilding.getDimension();
+				var hotspot = this._selectedBuilding.getHotspot();
 				var buildingCoords = [];
 				var index = 0;
 
@@ -134,6 +180,10 @@ var Editor = Class.extend({
 				}
 			}
 		}
+	},
+
+	_snapToGrid: function(coords) {
+		return { x: Math.round(coords.x), y: Math.round(coords.y) };
 	},
 
 	// checkers
@@ -169,7 +219,7 @@ var Editor = Class.extend({
 		for (y = coords.y - hotspot.y; y < coords.y - hotspot.y + dimension.height; y++) {
 			for (x = coords.x - hotspot.x; x < coords.x - hotspot.x + dimension.width; x++) {
 
-				var tileBuilding = castle._getTileAtPosition(x, y);
+				var tileBuilding = this.castle._getTileAtPosition(x, y);
 
 				if (tileBuilding !== undefined &&
 					tileBuilding.getBuildingType() !== BuildingType.type.WOODEN_WALL &&
@@ -191,7 +241,7 @@ var Editor = Class.extend({
 				
 				if (x >= 0 && x < this.castle._castleBoundryLength && y >= 0 && y < this.castle._castleBoundryLength) {
 
-					var tileBuilding = castle._getTileAtPosition(x, y);
+					var tileBuilding = this.castle._getTileAtPosition(x, y);
 
 					if (tileBuilding !== undefined && tileBuilding.getBuildingType().isGapRequired()) {
 						return false;
@@ -203,10 +253,10 @@ var Editor = Class.extend({
 		return true;
 	},
 
-	_getCoords: function(ex, ey) {
+	_getCoords: function(coords) {
 		return {
-			x: Math.floor((ex - this._gridOffset.x) / this._tileWidth),
-			y: Math.floor((ey - this._gridOffset.y) / this._tileWidth)
+			x: Math.floor((coords.x - this._landPanel._gridOffset.x) / this._landPanel._tileWidth),
+			y: Math.floor((coords.y - this._landPanel._gridOffset.y) / this._landPanel._tileWidth)
 		};
 	},
 

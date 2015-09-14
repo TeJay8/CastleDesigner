@@ -114,9 +114,9 @@ var Castle = Class.extend({
 	 */
 	addBuilding: function(type, position, id) {
 		
-		if (id === undefined) {
-			id = this._getNewId;
-		}
+		//if (id === undefined) {
+		//	id = this._getNewId;
+		//}
 
 		var tile = new TileBuilding(type, id);
 
@@ -147,9 +147,10 @@ var Castle = Class.extend({
 	 * @method     getBuilding
 	 * @param      {<type>}  x       { description }
 	 * @param      {<type>}  y       { description }
+	 * @return    {bool} return false if it not a correct building
 	 */
 	getBuilding: function(x, y) {
-		
+		return false;
 	},
 
 
