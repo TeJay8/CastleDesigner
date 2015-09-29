@@ -1,203 +1,395 @@
 
-/*
-	TODO maybe convert all loops from position to index
-*/
 var Castle = Class.extend({
 
-	constructor: function(resources) {
-		this.resources = resources;
-		this._castleBoundryLength = 52;
-		this._gridData = [];
-		this._lastIdUsed = 10;
+	constructor: function(dimension, callStackLength) {
+		this._dimension = dimension || { width: Castle.CASTLE_BOUNDRY_LENGTH, height: Castle.CASTLE_BOUNDRY_LENGTH };
+		this._grid = new Grid(this._dimension);
+		this._lastIdUsed = 9;
+		this._totalBuildingTime = 0;
+		this._buildingQuantities = new Map();
+		this._buildingResources = new Map();
 
-		this._resetGridData();
+		this._callStack = [];
+		this._callStackCurrent = -1;
+		this._callStackLength = callStackLength || 10;
+
+		this._selectedBuilding = Building.Type.STONE_WALL;
 	},
 
+	addBuilding: function(coord, buildingName, id, update) {
+
+		if (typeof id === "undefined") {
+			id = this._getNewId();
+		}
+
+		var buildingType = this._setSelectedBuilding(buildingName);
+		var tileBuilding = new TileBuilding(buildingType, id);
+		var keys = this._grid.getKeys(coord, buildingType.getDimension());
+
+		this._grid.setValues(tileBuilding, keys);
+
+		if (update !== false) {
+			//this._push(tileBuilding, keys, "setValues", "removeValues");
+			this._pushString(this._grid.toString());
+
+			this._updateDesignStats();
+		}
+
+		return id;
+	},
+
+	removeBuilding: function(coord, update) {
+		var tileBuilding = this._grid.getValue(coord);
+
+		if ( !(tileBuilding instanceof TileBuilding) ) {
+			console.error("tileBuilding is incorrect");
+		}
+
+		this._setSelectedBuilding(tileBuilding.getBuildingType().getOrdinal());
+
+		var id = tileBuilding.getBuildingId();
+		var keys = this._grid.getKeys(coord, tileBuilding.getBuildingType().getDimension());
+
+		this._grid.removeValues(keys);
+
+		if (update !== false) {
+			//this._push(tileBuilding, keys, "removeValues", "setValues");
+			this._pushString(this._grid.toString());
+			
+			this._updateDesignStats();
+		}
+
+		return tileBuilding;
+	},
+
+	reset: function() { this._grid.reset(); },
+
+	getNumberOfBuildings: function(buildingType) { return this._buildingQuantities.get(buildingType); },
+
+	getTotalResource: function(resource) { return this._buildingResources.get(resource); },
+
+	getTotalBuildingTime: function() { return this._totalBuildingTime; },
+	
 	_getNewId: function() { return ++this._lastIdUsed; },
 
-	importData: function(text) {
-		console.log("importing data");
-		console.log(text);
-	},
+	_updateDesignStats: function() {
+		var buildingCounts = new Map();
 
-	_loopGrid: function(callback) {
-		var x, y;
+		this._totalBuildingTime = 0;
 
-		for (y = 0; y < this._castleBoundryLength; y++) {
-			for (x = 0; x < this._castleBoundryLength; x++) {
+		// reset the _buildingResources map
+		this._forEach(Building.Resource, function(buildingResource) {
+			this._buildingResources.set(buildingResource, 0);
+		}, this);
 
-				callback.call( this, x, y );
+		// set the buildingCounts to building name and to zero
+		this._forEach(Building.Type, function(buildingType, buildingName) {
+			buildingCounts.set(buildingName, 0);
+		}, this);
+
+		// counting the buildingType
+		this._grid.loop(function(tileBuilding, index) {
+
+			if (tileBuilding !== undefined) {
+				var buildingType = tileBuilding.getBuildingType();
+
+				buildingCounts.set(buildingType.getOrdinal(), buildingCounts.get(buildingType.getOrdinal()) + 1);
 			}
-		}
-	},
-
-	_loopGridStartAtPosition: function(startX, startY, width, height, callback) {
-		var x, y, 
-			endX = startX + width, 
-			endY = startY + height;
-
-		for (y = startY; y < endY; y++) {
-			for (x = startX; x < endX; x++) {
-
-				callback.call( this, x, y );
-			}
-		}
-	},
-
-	// setters of tiles
-	_removeTileAtPosition: function(x, y) {
-		this._setTileAtPosition(x, y, undefined);
-	},
-
-	_setTileAtPosition: function(x, y, buildingTile) {
-		this._setTileAtGridIndex(this._getIndexAtPosition(x, y), buildingTile);
-	},
-
-	_setTileAtGridIndex: function(index, buildingTile) {
-		this._gridData[index] = buildingTile;
-	},
-
-	// getters of tiles
-	_getTileAtPosition: function(x, y) {
-		return this._getTileAtIndex(this._getIndexAtPosition(x, y));
-	},
-
-	_getTileAtIndex: function(index) {
-		return this._gridData[index];
-	},
-
-	// getter position and index
-	_getIndexAtPosition: function(x, y) {
-		var index = (y * this._castleBoundryLength) + x;
-
-		if (index + 1 > this._castleBoundryLength * this._castleBoundryLength) {
-			console.error("index out of range");
-		}
-
-		return index;
-	},
-
-	_getPositionAtIndex: function(index) {
-		var y = Math.floor(index / this._castleBoundryLength);
-		var x = index - (y * this._castleBoundryLength);
-
-		return { x: x, y: y };
-	},
-
-
-	//TODO all the reset methods should be directed by the editor
-	// stats and data methods
-	_resetGridData: function() {
-
-		this._loopGrid(function(x, y) {
-
-			this._removeTileAtPosition(x, y);
 		});
 
-		var type = BuildingType.type.KEEP;
-		var xAndY = (this._castleBoundryLength - BuildingType.type.KEEP.getWidth()) / 2;
+		// calculating cost and time
+		this._forEach(Building.Type, function(buildingType, buildingName) {
+			var numberOfBuildings = this._calculateNumberOfBuildings(buildingType, buildingCounts.get(buildingName));
 
-		this.addBuilding(type, { x: xAndY, y: xAndY }, 0);
+			this._buildingQuantities.set(buildingName, numberOfBuildings);
+
+			this._forEach(Building.Resource, function(buildingResource) {
+				var cumulativeCost = this._buildingResources.get(buildingResource) + buildingType.getCost(buildingResource) * numberOfBuildings;
+
+				this._buildingResources.set(buildingResource, cumulativeCost);
+			}, this);
+
+			this._totalBuildingTime += buildingType.getBuildTime() * numberOfBuildings;
+		}, this);
 	},
 
-	_updateDesignStats: function() {
-		// TODO should be finished later
+	_calculateNumberOfBuildings: function(buildingType, numberOfTiles) {
+		var dimension = buildingType.getDimension();
+
+		return Math.floor(numberOfTiles / dimension.width * dimension.height);
 	},
 
-	/**
-	 * Adds a buildingType to the castle grid.
-	 *
-	 * @method     addBuilding
-	 * @param      {int}  position  start position x
-	 * @param      {BuildingType}  type    one of the default building types
-	 * @param      {int}  id      optional custom id
-	 */
-	addBuilding: function(type, position, id) {
-		
-		//if (id === undefined) {
-		//	id = this._getNewId;
-		//}
+	backward: function() {
+		var operation;
 
-		var tile = new TileBuilding(type, id);
+		if (this._callStackCurrent === -1) {
+			return false;
+		}
 
-		this._loopGridStartAtPosition(
-			position.x, position.y,
-			type.getWidth(),
-			type.getHeight(),
-			function(x, y) {
+		operation = this._callStack[this._callStackCurrent];
 
-				var gp = this._getTileAtPosition(x, y);
+		this._grid[operation.action.backward](operation.argsFirst, operation.argSecond);
 
-				if (gp !== undefined) {
-					// means its a building
-					console.log("its a building");
-				}
+		if (this._callStackCurrent > 0) {
+			this._callStackCurrent--;
+		}
 
-				this._setTileAtPosition(x, y, tile);
+		return true;
+	},
+
+	forward: function() {
+		var operation;
+
+		if (this._callStackCurrent === -1) {
+			return false;
+		}
+
+		operation = this._callStack[this._callStackCurrent];
+
+		this._grid[operation.action.forward](operation.argsFirst, operation.argSecond);
+
+		if (this._callStackCurrent < this._callStackLength) {
+			this._callStackCurrent++;
+		}
+
+		return true;
+	},
+
+	_push: function(argsFirst, argSecond, forward, backward) {
+
+		if (this._callStackCurrent === -1) {
+			this._callStackCurrent = 0;
+		}
+
+		if (this._callStackCurrent < this._callStackLength) {
+			this._callStackCurrent++;
+		}
+
+		this._callStack[this._callStackCurrent] = {
+			argsFirst: argsFirst,
+			argSecond: argSecond,
+			action: {
+				forward: forward,
+				backward: backward
 			}
-		);
-
-		this._updateDesignStats();
+		};
 	},
 
+	_pushString: function(string) {
+		if (this._callStack.length >= this._callStackLength) {
+			this._callStack.splice(0, 1);
+		} else {
+			this._callStackCurrent++;
+		}
 
-	/**
-	 * Gets the buildingTile
-	 *
-	 * @method     getBuilding
-	 * @param      {<type>}  x       { description }
-	 * @param      {<type>}  y       { description }
-	 * @return    {bool} return false if it not a correct building
-	 */
-	getBuilding: function(x, y) {
+		this._callStack.push(string);
+	},
+
+	_setSelectedBuilding: function(buildingName) {
+		if (typeof(buildingName) === "undefined") {
+			console.error("Invalid argument undefined to setSelectedBuilding");
+		}
+
+		var buildingType = Building.Type[buildingName.toUpperCase()];
+
+		this._selectedBuilding = buildingType;
+
+		return buildingType;
+	},
+
+	getEmptyCoord: function(buildingName) {
+		var ret = false;
+		var self = this;
+		
+		this._setSelectedBuilding(buildingName);
+
+		this._grid.loop(function(tileBuilding, index) {
+			var coord = self._grid.getCoord(index);
+
+			if (self.isValidCoord(coord, buildingName) && ret === false) {
+				ret = coord;
+			}
+		});
+
+		return ret;
+	},
+
+	isValidCoord: function(coord, buildingName) {
+
+		this._setSelectedBuilding(buildingName);
+
+		if (this._fitsinGrid(coord) && this._isBuildable(coord)) {
+
+			if (this._selectedBuilding.getGapRequired()) {
+				return this._isGapSatisfied(coord);
+			} else {
+				return true;
+			}
+		}
+
 		return false;
 	},
 
+	_fitsinGrid: function(coord) {
+		var dimension = this._selectedBuilding.getDimension();
 
-	/**
-	 * Removes the buildingTile from the grid
-	 *
-	 * @method     removeBuilding
-	 * @param      {<type>}  tile    { description }
-	 */
-	removeBuilding: function(tile) {
-		// TODO change param to position
-		var id = tile.getId();
+		return (
+			coord.x >= 0 && coord.y >= 0 &&
+			coord.x <= this._dimension.width - dimension.width &&
+			coord.y <= this._dimension.height - dimension.height
+		);
+	},
 
-		this._loopGrid(function(x, y) {
+	_isBuildable: function(coord) {
+		var dimension = this._selectedBuilding.getDimension();
+		var ret = true;
 
-			var tb = this._getTileAtPosition(x, y);
+		this._grid.loop(function(tileBuilding, index) {
 
-			if (tb.getId() == id) {
+			if (tileBuilding !== undefined &&
+				tileBuilding.getBuildingType() !== Building.Type.WOODEN_WALL &&
+				tileBuilding.getBuildingType() !== Building.Type.STONE_WALL) {
 
-				this._removeTileAtPosition(x, y);
+				ret = false;
 			}
+		}, coord, dimension);
+
+		return ret;
+	},
+
+	_isGapSatisfied: function(coord) {
+		var dimension = this._selectedBuilding.getDimension();
+		var ret = true;
+		var start = {
+			x: coord.x - 1,
+			y: coord.y - 1
+		};
+		var end = {
+			width: dimension.width + 1,
+			height: dimension.height + 1
+		};
+
+		this._grid.loop(function(tileBuilding, index) {
+
+			if (tileBuilding !== undefined && tileBuilding.getBuildingType().getGapRequired()) {
+				ret = false;
+			}
+		}, start, end);
+
+		return ret;
+	},
+
+	_forEach: function(obj, callback, ctx) {
+		Object.keys(obj).sort().forEach(function(key, index) {
+			callback.call( ctx, obj[key], key, index );
 		});
 	},
 
+	//exportData: function() {
+	//	var exp = {};
+	//	var tileBuilding, coord, type;
+//
+	//	exp[Building.Type.WOODEN_WALL] = "";
+	//	exp[Building.Type.STONE_WALL] = "";
+	//	exp[Building.Type.MOAT] = "";
+	//	exp[Building.Type.KILLING_PIT] = "";
+	//	exp[STRUCTURES] = "";
+//
+	//	this.loop(function(index) {
+	//		tileBuilding = this.getGridDataIndex(index);
+	//		coord = this.getCoord(index);
+//
+	//		if (tileBuilding === undefined) {
+	//			return;
+	//		}
+//
+	//		type = tileBuilding.getBuildingType();
+//
+	//		switch (type) {
+	//			case Building.Type.WOODEN_WALL: case Building.Type.STONE_WALL:
+	//			case Building.Type.MOAT: case Building.Type.KILLING_PIT:
+	//				exp[type] += this._convertToLetters(coord.x);
+	//				exp[type] += this._convertToLetters(coord.y);
+	//				break;
+	//			default:
+	//				//exp.STRUCTURES += this._convertToLetters(tileBuilding.getBuildingId());
+	//				exp.STRUCTURES += this._convertToLetters(tileBuilding.getBuildingType());
+	//				exp.STRUCTURES += this._convertToLetters(coord.x);
+	//				exp.STRUCTURES += this._convertToLetters(coord.y);
+	//				break;
+	//		}
+	//	});
+//
+	//	return (
+	//		exp[Building.Type.WOODEN_WALL] + "@" + 
+	//		exp[Building.Type.STONE_WALL] + "@" + 
+	//		exp[Building.Type.MOAT] + "@" + 
+	//		exp[Building.Type.KILLING_PIT] + "@" + 
+	//		exp[STRUCTURES]
+	//	);
+	//},
+//
+	////TODO make this compatible with the java program
+	//importData: function(text) {
+	//	var dataStrings = text.split("@");
+//
+	//	this.resetGridData();
+//
+	//	this._importSingleTiles(Building.Type.WOODEN_WALL, dataString[0]);
+	//	this._importSingleTiles(Building.Type.STONE_WALL, dataString[1]);
+	//	this._importSingleTiles(Building.Type.MOAT, dataString[2]);
+	//	this._importSingleTiles(Building.Type.KILLING_PIT, dataString[3]);
+//
+	//	var buildingType = this._convertToInt(dataString[4]);
+	//	var x = this._convertToInt(dataString[4].substring(i, i + 2));
+	//	var y = this._convertToInt(dataString[4].substring(i + 2, i + 3));
+//
+	//	this._updateDesignStats();
+	//},
+//
+	//_importSingleTiles: function(buildingType, dataString) {
+	//	var i = 0, x, y;
+	//	var coords = [];
+//
+	//	while (i < dataString.length()) {
+	//		x = this._convertToInt(dataString.substring(i, i + 1));
+	//		y = this._convertToInt(dataString.substring(i + 1, i + 2));
+//
+	//		coords[i] = { x: x, y: y };
+//
+	//		i += 2;
+	//	}
+//
+	//	this.addBuilding(coords, buildingType, undefined, false);
+	//},
+//
+	//_convertToLetters: function(val) {
+	//	var ret = "";
+//
+	//	while (val > 0) {
+	//		val--;
+	//		ret = String.fromCharCode(97 + (val % 26)) + ret;
+	//		val = Math.floor(val / 26);
+	//	}
+//
+	//	return ret;
+	//},
+//
+	//_convertToInt: function(val) {
+	//	var i,
+	//		index = 0,
+	//		ret = 0;
+//
+	//	for (i = val.length; i >= 0; i--) {
+	//		ret += ((val.charCodeAt(i) - 97) * index);
+//
+	//		index++;
+	//	}
+//
+	//	return ret;
+	//},
 
-
-
-
-	// methods under here are not final yet
-
-	isGapSatisfied: function(coord, size, buildingTile) {
-		// TODO building that are in the position needs te be removed first
-
-		var startX = coord.x - 1, 
-			startY = coord.y - 1, 
-			width = size.x + 1,
-			height = size.y + 1;
-
-		this._loopGridStartAtPosition(startX, startY, width, height, function(x, y) {
-
-			var tileBuilding = this._getTileAtPosition(x, y);
-
-			if (tileBuilding.getType().isGapRequired()) {
-				return false;
-			}
-		});
-
-		return true;
-	}
+}, {
+	CASTLE_BOUNDRY_LENGTH: 52
 });
+

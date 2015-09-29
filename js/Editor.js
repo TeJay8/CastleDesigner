@@ -1,274 +1,141 @@
 
-// TODO a drag function that work only with walls and moat to place large amount of pieces
-
 var Editor = Class.extend({
 
-	constructor: function(castle, landTarget, buildingTarget) {
+	constructor: function(resources, landPanel, buildingPanel) {
+		var self = this;
+
+		this.resources = resources;
+
 		this._version = "0.1";
 
-		this.castle = castle;
-		this._landPanel = new LandPanel(castle, landTarget);
-		this._buildingsPanel = new BuildingsPanel(castle, buildingTarget, function() {
-			self.addBuilding(this.name, { x: 22, y: 22 });
+		this._castle = new Castle();
+		this._landPanel = new LandPanel(resources, landPanel);
+		this._buildingPanel = new BuildingPanel(resources, buildingPanel, function() {
+			var buildingName = this.name;
+			var coord = self._castle.getEmptyCoord(buildingName);
+
+			if (buildingName === "killing_pit" || buildingName === "moat" || buildingName === "stone_wall" || buildingName === "wooden_wall") {
+				self.addDraggable(buildingName);
+			} else if (coord) {
+				self.addBuilding(coord, buildingName);
+			} else {
+				alert("No more buildings can be added");
+			}
 		});
 
-		this._selectedBuilding = BuildingType.type.STONE_WALL;
-		this._mouseCoords = { x: 0, y: 0 };
+		this.set();
+		this.reset();
+	},
 
+	set: function() {
 		var self = this;
-		var landPanel = this._landPanel;
-		var stage = this._landPanel._stage;
-		var coordsOld;
+		var coordFrom = {};
+		var coordTo = {};
 
-		// landPanel events
-		stage.on("click", function(evt) {
-			//console.log("click");
-			//console.dir(evt);
+		this._landPanel.getStage().on("dragstart", function(evt) {
 			var shape = evt.target;
-			var button = false;
 
-			self.setSelectedBuilding(shape.getAttr("buildingType"));
-			self.changeGridData(evt, button);
+			coordFrom = self.getCoord(shape.getPosition());
+
+			self._landPanel.dragstartBuilding(shape);
 		});
 
-		stage.on("dragstart", function(evt) {
+		this._landPanel.getStage().on("dragend", function(evt) {
 			var shape = evt.target;
 
-			//TODO rotation custem animation for continue
-			coordsOld = self._getCoords(shape.getPosition());
-			self.setSelectedBuilding(shape.getAttr("buildingType"));
+			coordTo = self.getCoord(shape.getPosition());
+			// TODO: remove castle grid values of the building that is moved
 
-			shape.moveTo(landPanel._dragLayer);
-			stage.draw();
-
-			shape.setAttrs({
-				shadowOffset: { x: 15, y: 15 },
-				scale: {
-					x: shape.getAttr('startScale'),
-					y: shape.getAttr('startScale')
-				}
-			});
-		});
-
-		stage.on("dragend", function(evt) {
-			var shape = evt.target;
-			var coords = self._getCoords(shape.getPosition());
-
-			if (self._isValidCoords(coords)) {
-				shape.setPosition(coords);
-				self.moveBuilding(name, coordsOld, coords);
+			if (self._castle.isValidCoord(coordTo, shape.getAttr("buildingName"))) {
+				self.moveBuilding(coordFrom, coordTo, shape.getAttr("id"));
+				self._landPanel.setPosition(shape, Editor.getPosition(coordTo));
+			} else {
+				self._landPanel.setPosition(shape, Editor.getPosition(coordFrom));
 			}
 
-			shape.moveTo(landPanel._layer);
-			stage.draw();
-
-			shape.to({
-				duration: 0.5,
-				easing: Konva.Easings.ElasticEaseOut,
-				scaleX: shape.getAttr('startScale'),
-				scaleY: shape.getAttr('startScale'),
-				shadowOffsetX: 5,
-				shadowOffsetY: 5,
-			});
+			self._landPanel.dragendBuilding(shape);
 		});
 
 		// add cursor styling
-		stage.on("mouseover", function(evt) {
+		this._landPanel.getStage().on("mouseover", function(evt) {
 
-			if (evt.target.attrs.draggable) {
+			if (evt.target.getAttr("draggable")) {
 				document.body.style.cursor = "pointer";
 			}
 		});
 
-		stage.on("mouseout", function() {
+		this._landPanel.getStage().on("mouseout", function() {
 			document.body.style.cursor = "default";
 		});
-
-		// TODO this is just a test can be deleted later
-		this.setSelectedBuilding("GREAT_TOWER");
-
-		for (var i = 0; i < 8; i++) {
-			var position = this._getCoords({ x: 34.5 + (83 * i), y: 34.5 });
-
-			this.addBuilding("great_tower", position);
-		}
 	},
 
-	setSelectedBuilding: function(buildingType) {
-		// _selectedBuilding
-		if (typeof(buildingType) === "undefined") {
-			console.error("Invalid argument undefined to setSelectedBuilding");
+	addBuilding: function(coord, buildingName, id) {
+		if (coord === undefined) {
+			console.error("coord is undefined");
 		}
 
-		this._selectedBuilding = BuildingType.type[buildingType];
-	},
-
-	addBuilding: function(name, buildingCoords, id) {
-		if (buildingCoords === undefined) {
-			return false;
-		}
-
-		if (typeof(id) === "undefined") {
-			id = this.castle._getNewId();
-		}
-		
-		if (this._isValidCoords(buildingCoords)) {
-			// TODO check if getNewId only get used once when adding a new building
-			var type = BuildingType.type[name.toUpperCase()];
-
-			this._landPanel.addBuilding(name, buildingCoords, id);
-			this.castle.addBuilding(type, buildingCoords, id);
+		if (this._castle.isValidCoord(coord, buildingName)) {
+			id = this._castle.addBuilding(coord, buildingName, id);
+			this._landPanel.addBuilding(coord, buildingName, id);
 
 			return true;
 		}
-		
-		return false;
-	},
-
-	removeBuilding: function(name, buildingCoords, id) {
-		var buildingTiles = this.castle.getBuilding(buildingCoords);
-
-		if (buildingTiles) {
-
-			this._landPanel.removeBuilding(name, buildingCoords, id);
-			this.castle.removeBuilding(buildingTiles);
-
-			return true; // if succeeds
-		}
 
 		return false;
 	},
 
-	moveBuilding: function(name, oldCoords, newCoords) {
-		if (this.removeBuilding(name, oldCoords)) {
-			// first remove building
-			if (!this.addBuilding(name, newCoords)) {
-				//
-				this.addBuilding(name, oldCoords);
-			}
-		}
+	removeBuilding: function(coord) {
+		var tileBuilding = this._castle.removeBuilding(coord);
+
+		this._landPanel.removeBuilding(tileBuilding.getBuildingId());
+
+		return tileBuilding;
 	},
 
-	changeGridData: function(coords, button) {
-		var x, y;
+	moveBuilding: function(coordFrom, coordTo, id) {
+		var tileBuilding = this._castle.removeBuilding(coordFrom, false);
 
-		if (this._isValidCoords(coords)) {
-			// button true is left click
-			if (button) {
-				var dimension = this._selectedBuilding.getDimension();
-				var hotspot = this._selectedBuilding.getHotspot();
-				var buildingCoords = [];
-				var index = 0;
-
-				for (x = mouseCoords.x - hotspot.x; x < mouseCoords.x - hotspot.x + dimension.width; x++) {
-					for (y = mouseCoords.y - hotspot.y; y < mouseCoords.y - hotspot.y + dimension.height; y++) {
-
-						buildingCoords[i] = { x: x, y: y };
-						index++;
-					}
-				}
-
-				this.addBuilding(buildingCoords);
-			}
-
-			// button false is right click
-			if (!button && this._fitsInGrid(coords, { width: 1, height: 1 }, { x: 0, y: 0 })) {
-				var tileBuilding = this.castle._getTileAtPosition(coords.x, coords.y);
-
-				if (typeof(building) !== "undefined" && building !== BuildingType.type.KEEP) {
-					this.removeBuilding(tileBuilding);
-				}
-			}
-		}
-	},
-
-	_snapToGrid: function(coords) {
-		return { x: Math.round(coords.x), y: Math.round(coords.y) };
-	},
-
-	// checkers
-	_isValidCoords: function(coords) {
-		var dimension = this._selectedBuilding.getDimension();
-		var hotspot = this._selectedBuilding.getHotspot();
-
-		if (this._fitsInGrid(coords, dimension, hotspot) &&
-			this._isBuildable(coords, dimension, hotspot)) {
-
-			if (this._selectedBuilding.isGapRequired()) {
-				return this._isGapSatisfied(coords, dimension, hotspot);
-			} else {
-				return true;
-			}
+		if (tileBuilding.getBuildingId() !== id) {
+			console.error("not the correct building", id, tileBuilding.getBuildingId());
 		}
 
-		return false;
+		this._castle.addBuilding(coordTo, tileBuilding.getBuildingType().getOrdinal(), tileBuilding.getBuildingId());
 	},
 
-	_fitsInGrid: function(coords, dimension, hotspot) {
-		return (
-			coords.x - hotspot.x >= 0 &&
-			coords.x - hotspot.x <= this.castle._castleBoundryLength - dimension.width &&
-			coords.y - hotspot.y >= 0 &&
-			coords.y - hotspot.y <= this.castle._castleBoundryLength - dimension.height
-		);
+	addDraggable: function(buildingName) {
+		//TODO: a drag function that work only with walls and moat to place large amount of pieces
+		console.log("start dragging the building ", buildingName);
 	},
 
-	_isBuildable: function(coords, dimension, hotspot) {
-		var x, y;
+	reset: function() {
+		var buildingName = "KEEP";
 
-		for (y = coords.y - hotspot.y; y < coords.y - hotspot.y + dimension.height; y++) {
-			for (x = coords.x - hotspot.x; x < coords.x - hotspot.x + dimension.width; x++) {
+		this._castle.reset();
+		this._landPanel.reset();
 
-				var tileBuilding = this.castle._getTileAtPosition(x, y);
-
-				if (tileBuilding !== undefined &&
-					tileBuilding.getBuildingType() !== BuildingType.type.WOODEN_WALL &&
-					tileBuilding.getBuildingType() !== BuildingType.type.STONE_WALL) {
-
-					return false;
-				}
-			}
-		}
-
-		return true;
+		this.addBuilding({ x: 22, y: 22 }, buildingName, 0);
 	},
 
-	_isGapSatisfied: function(coords, dimension, hotspot) {
-		var x, y;
+	getCoord: function(position) {
+		var gridOffset = this._landPanel.getGridOffset();
+		var x = Math.round((position.x - gridOffset.x) / Editor.PIXELS);
+		var y = Math.round((position.y - gridOffset.y) / Editor.PIXELS);
 
-		for (y = coords.y - hotspot.y - 1; y < coords.y - hotspot.y + dimension.height + 1; y++) {
-			for (x = coords.x - hotspot.x - 1; x < coords.x - hotspot.x + dimension.width + 1; x++) {
-				
-				if (x >= 0 && x < this.castle._castleBoundryLength && y >= 0 && y < this.castle._castleBoundryLength) {
+		if (x <= 0) x = 0;
+		if (y <= 0) y = 0;
 
-					var tileBuilding = this.castle._getTileAtPosition(x, y);
-
-					if (tileBuilding !== undefined && tileBuilding.getBuildingType().isGapRequired()) {
-						return false;
-					}
-				}
-			}
-		}
-
-		return true;
-	},
-
-	_getCoords: function(coords) {
 		return {
-			x: Math.floor((coords.x - this._landPanel._gridOffset.x) / this._landPanel._tileWidth),
-			y: Math.floor((coords.y - this._landPanel._gridOffset.y) / this._landPanel._tileWidth)
+			x: (x < Castle.CASTLE_BOUNDRY_LENGTH) ? x : Castle.CASTLE_BOUNDRY_LENGTH - 1,
+			y: (y < Castle.CASTLE_BOUNDRY_LENGTH) ? y : Castle.CASTLE_BOUNDRY_LENGTH - 1
 		};
-	},
-
-	generateExportString: function() {
-
-	},
-
-	importData: function(text) {
-		if (typeof(text) === "undefined" || text.length() === 0) {
-			return;
-		}
-
-		this._landPanel.importData(text);
 	}
+}, {
+	PIXELS: 13,
+	getPixels: function(length) { return Editor.PIXELS * length; },//+ length - 1
+	getPosition: function(coord) {
+		return {
+			x: Math.floor(coord.x * Editor.PIXELS),
+			y: Math.floor(coord.y * Editor.PIXELS)
+		};
+	} 
 });

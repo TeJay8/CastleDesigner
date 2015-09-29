@@ -1,27 +1,16 @@
-/*
-	TODO: when TileBuilding get added to the grid it should be one building still
-	TODO: keep the recourse stored here can only have so many recourses
-*/
+
 var TileBuilding = Class.extend({
 
-	constructor: function(type, id) {
-		this._type = type || 0;
-		this._id = id || 0;
+	constructor: function(buildingType, buildingId) {
+		this._buildingType = buildingType;
+		this._buildingId = buildingId;
 	},
 
-	getBuildingType: function() {
-		return this._type;
-	},
+	getBuildingType: function() { return this._buildingType; },
 
-	setBuildingType: function(type) {
-		this._type = type;
-	},
+	getBuildingId: function() { return this._buildingId; },
 
-	getBuildingId: function() {
-		return this._id;
-	},
+	setBuildingId: function(buildingId) { this._buildingId = buildingId; },
 
-	setBuildingId: function(id) {
-		this._id = id;
-	}
+	toString: function() { return this._buildingId; }
 });

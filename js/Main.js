@@ -1,127 +1,162 @@
 
-$(document).ready(function() {
-	// when adding to git ignore bower_packages
+var editor;
 
-	// data of the buildings
+$(document).ready(function() {
+	// data of the building Konva to save data instead of Castle class
 	var data = {
 		ballista_tower: {
+			buildTime: 18000,
+			colour: "230,200,60",
+			dimension: { width: 3, height: 3 },
+			gapRequired: false,
 			image: "images/ballista_tower.png",
-			size: { width: 3, height: 3 },
 			max: 10,
-			gapRequired: false
+			resourceCosts: [ 0, 10000, 0, 0 ]
 		},
 		great_tower: {
+			buildTime: 86400,
+			colour: "200,200,200",
+			dimension: { width: 5, height: 5 },
+			gapRequired: true,
 			image: "images/great_tower.png",
-			size: { width: 5, height: 5 },
 			max: -1,
-			gapRequired: true
+			resourceCosts: [ 2500, 0, 0, 0 ]
 		},
 		guard_house: {
+			buildTime: 10800,
+			colour: "255,200,180",
+			dimension: { width: 3, height: 3 },
+			gapRequired: false,
 			image: "images/guard_house.png",
-			size: { width: 3, height: 3 },
 			max: 38,
-			gapRequired: false
+			resourceCosts: [ 0, 400, 0, 0 ]
 		},
 		keep: {
+			buildTime: 0,
+			colour: "0, 0, 0",
+			dimension: { width: 8, height: 8 },
+			gapRequired: false,
 			image: "images/keep.png",
-			size: { width: 8, height: 8 },
-			max: -1,
-			gapRequired: false
+			max: 1,
+			resourceCosts: [ 0, 0, 0, 0 ]
 		},
 		killing_pit: {
+			buildTime: 3600,
+			colour: "120,100,0",
+			dimension: { width: 1, height: 1 },
+			gapRequired: false,
 			image: "images/killing_pit.png",
-			size: { width: 1, height: 1 },
 			max: -1,
-			gapRequired: false
+			resourceCosts: [ 0, 0, 100, 0 ]
 		},
 		large_tower: {
+			buildTime: 57600,
+			colour: "200,200,200",
+			dimension: { width: 4, height: 4 },
+			gapRequired: true,
 			image: "images/large_tower.png",
-			size: { width: 4, height: 4 },
 			max: -1,
-			gapRequired: true
+			resourceCosts: [ 1500, 0, 0, 0 ]
 		},
 		lookout_tower: {
+			buildTime: 14400,
+			colour: "200,200,200",
+			dimension: { width: 2, height: 2 },
+			gapRequired: true,
 			image: "images/lookout_tower.png",
-			size: { width: 2, height: 2 },
 			max: -1,
-			gapRequired: true
+			resourceCosts: [ 300, 0, 0, 0 ]
 		},
 		moat: {
+			buildTime: 900,
+			colour: "0,200,255",
+			dimension: { width: 1, height: 1 },
+			gapRequired: false,
 			image: "images/moat.png",
-			size: { width: 1, height: 1 },
 			max: 500,
-			gapRequired: false
+			resourceCosts: [ 0, 0, 0, 20 ]
 		},
 		small_tower: {
+			buildTime: 28800,
+			colour: "200,200,200",
+			dimension: { width: 3, height: 3 },
+			gapRequired: true,
 			image: "images/small_tower.png",
-			size: { width: 3, height: 3 },
 			max: -1,
-			gapRequired: true
+			resourceCosts: [ 800, 0, 0, 0 ]
 		},
 		smelter: {
+			buildTime: 21600,
+			colour: "200,30,30",
+			dimension: { width: 4, height: 4 },
+			gapRequired: false,
 			image: "images/smelter.png",
-			size: { width: 4, height: 4 },
 			max: -1,
-			gapRequired: false
+			resourceCosts: [ 0, 0, 400, 0 ]
 		},
 		stone_gatehouse: {
+			buildTime: 7200,
+			colour: "100,100,100",
+			dimension: { width: 3, height: 3 },
+			gapRequired: true,
 			image: "images/stone_gatehouse.png",
-			size: { width: 3, height: 3 },
 			max: -1,
-			gapRequired: true
+			resourceCosts: [ 500, 0, 0, 0 ]
 		},
 		stone_wall: {
+			buildTime: 900,
+			colour: "230,230,230",
+			dimension: { width: 1, height: 1 },
+			gapRequired: false,
 			image: "images/stone_wall.png",
-			size: { width: 1, height: 1 },
 			max: -1,
-			gapRequired: false
+			resourceCosts: [ 100, 0, 0, 0 ]
 		},
 		turret: {
+			buildTime: 14400,
+			colour: "0,0,80",
+			dimension: { width: 2, height: 2 },
+			gapRequired: false,
 			image: "images/turret.png",
-			size: { width: 2, height: 2 },
 			max: 10,
-			gapRequired: false
+			resourceCosts: [ 2000, 0, 0, 0 ]
 		},
 		wooden_gatehouse: {
+			buildTime: 3600,
+			colour: "100,50,0",
+			dimension: { width: 3, height: 3 },
+			gapRequired: true,
 			image: "images/wooden_gatehouse.png",
-			size: { width: 3, height: 3 },
 			max: -1,
-			gapRequired: true
+			resourceCosts: [ 0, 200, 0, 0 ]
 		},
 		wooden_tower: {
+			buildTime: 10800,
+			colour: "125,58,0",
+			dimension: { width: 2, height: 2 },
+			gapRequired: false,
 			image: "images/wooden_tower.png",
-			size: { width: 2, height: 2 },
 			max: -1,
-			gapRequired: false
+			resourceCosts: [ 0, 200, 0, 0 ]
 		},
 		wooden_wall: {
+			buildTime: 225,
+			colour: "150,75,0",
+			dimension: { width: 1, height: 1 },
+			gapRequired: false,
 			image: "images/wooden_wall.png",
-			size: { width: 1, height: 1 },
 			max: -1,
-			gapRequired: false
+			resourceCosts: [ 0, 20, 0, 0 ]
 		}
 	};
-
-	// TODO build screen 728 pixels wide
 	var resources = new Resources(data);
 
-	// setting the buildings
-	BuildingType.setter(resources);
+	Building.set(resources);
+	//TODO: when click opens a widget with options
+	editor = new Editor(resources, "container", "buildings");
 
-	var castle = new Castle(resources);
-	var editor = new Editor(castle, "container", $("#buildings"));
-	
+	//for (var i = 0; i < 10; i++) {
+	//	var buildingName = "great_tower";
+	//	console.log("gets added to grid ", editor.addBuilding(editor._castle.getEmptyCoord(buildingName), buildingName));
+	//}
 });
-//Arcade Fire - Wake Up
-//Band of Horses = No one gonna love you
-//Dilly Dally - Desire
-//Jamie T - Sticks 'n' Stones
-//Modest Mouse - The ground Walks
-//Phantogram - Fall In Love
-//Radiohead = Just
-
-var pixels = 13;
-
-var getPixelsize = function(n) {
-	return (n * pixels) + n - 1;
-};

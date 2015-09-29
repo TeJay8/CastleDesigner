@@ -1,60 +1,64 @@
 
+var BuildingPanel = Class.extend({
 
-var BuildingsPanel = Class.extend({
+	constructor: function(resources, target, callback, dimension, button) {
+		this.resources = resources;
 
-	constructor: function(castle, target, callback, size, menuDimension) {
-		this.castle = castle;
-		this.target = target;
-
-		this._menuSize = size || { x: 2, y: 7 };
-		this._menuDimension = menuDimension || { width: 100, height: 70 };
+		this._target = $("#" + target);
+		this._callback = callback;
+		this._dimension = dimension || { width: 2, height: 7 };
+		this._button = button || { width: 100, height: 70 };
 		this._order = ["tower", "stone", "gatehouse", "wooden", "rest"];
 
-		var keys = this._sortKeys(this.castle.resources.keys());
-		var x, y, name, dimension, index;
-		var div, button;
+		var keys = this._sortKeys(this.resources.keys());
+		var x, y, index;
 
 		// set the buttons panel
-		for (y = 0; y < Math.floor(keys.length / this._menuSize.x); y++) {
-			for (x = 0, j = this._menuSize.x; x < j; x++) {
+		for (y = 0; y < Math.floor(keys.length / this._dimension.width); y++) {
+			for (x = 0; x < this._dimension.width; x++) {
 
-				index = (y * this._menuSize.x) + x;
-				name = keys[index];
+				index = (y * this._dimension.width) + x;
 
-				div = $("<div></div>");
-				button = $("<button name='" + name + "' title='" + this._cleanUp(name) + "'></buttons>");
-
-				dimension = {
-					width: getPixelsize(BuildingType.type[name.toUpperCase()].getWidth()),
-					height: getPixelsize(BuildingType.type[name.toUpperCase()].getHeight())
-				};
-
-				button.click(callback);
-				button.css({
-					position: "relative",
-					background: "url(" + this.castle.resources.get(name).image.src + ") no-repeat",
-					width: dimension.width,
-					height: dimension.height,
-					margin: "auto",
-					left: (this._menuDimension.width - dimension.width) / 2,
-					top: (this._menuDimension.height - dimension.height) / 2,
-				});
-
-				div.css({
-					"float": "left",
-					width: this._menuDimension.width,
-					height: this._menuDimension.height
-				});
-
-				div.append(button);
-
-				this.target.append(div);
+				this.addButton(keys[index]);
 			}
 		}
 
 		// TODO set the quantities panel
 		// TODO set the resources panel
 		// TODO set the time panel
+	},
+
+	addButton: function(name) {
+		var div = $("<div></div>");
+		var button = $("<button name='" + name + "' title='" + this._cleanUp(name) + "'></buttons>");
+		var dimension = Building.Type[name.toUpperCase()].getDimension();
+
+		dimension = { 
+			width: Editor.getPixels(dimension.width),
+			height: Editor.getPixels(dimension.height)
+		};
+
+		button.click(this._callback);
+		button.css({
+			position: "relative",
+			background: "url(" + this.resources.get(name).image.src + ") no-repeat",
+			backgroundSize: "100%",
+			width: dimension.width,
+			height: dimension.height,
+			margin: "auto",
+			left: (this._button.width - dimension.width) / 2,
+			top: (this._button.height - dimension.height) / 2,
+		});
+
+		div.css({
+			"float": "left",
+			width: this._button.width,
+			height: this._button.height
+		});
+
+		div.append(button);
+
+		this._target.append(div);
 	},
 
 	_contains: function(array, str) {
@@ -77,7 +81,6 @@ var BuildingsPanel = Class.extend({
 			current = this._order[i];
 
 			for (j = 0; j < keys.length; j++) {
-
 				name = keys[j];
 
 				if (current !== "rest") {
@@ -104,6 +107,10 @@ var BuildingsPanel = Class.extend({
 
 	_cleanUp: function(str) {
 		var index = str.indexOf("_");
+
+		if (index < 0) {
+			return str;
+		}
 
 		return str.substring(0, index) + " " + str.substring(index + 1, str.length);
 	}

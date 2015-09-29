@@ -1,51 +1,43 @@
 
-
 var LandPanel = Class.extend({
 
-	constructor: function(castle, target, size, gridOffset, tileWidth) {
-		this.castle = castle;
-		this.target = target;
+	constructor: function(resources, target, dimension, gridOffset) {
+		this.resources = resources;
 
-		this._size = size || { width: 727, height: 727 };
+		this._target = target;
+		this._dimension = dimension || { width: 676, height: 676 };//688
 		this._gridOffset = gridOffset || { x: 0, y: 0 };
-		this._tileWidth = tileWidth || 13;
-		
+
 		this._stage = new Konva.Stage({
-			container: this.target,
-			width: this._size.width,
-			height: this._size.height
+			container: this._target,
+			width: this._dimension.width,
+			height: this._dimension.height
 		});
 
 		this._layer = new Konva.Layer();
 		this._dragLayer = new Konva.Layer();
 		this._stage.add(this._layer, this._dragLayer);
-
-		this.resetGridData();
 	},
 
-	removeBuilding: function(id) {
-		// TODO make a removeBuilding method
-		var building = this.findBuilding(id);
-
-		
-		this.repaint();
-	},
-
-	addBuilding: function(name, position, id) {
-		// TODO position middle of image?
-		// TODO get the checkers from the java project
-		// TODO link the addBuilding method to castle object grid
-		// TODO fix when the building moves the shadow doesnt get reset
-		var resource = this.castle.resources.get(name);
+	addBuilding: function(coord, buildingName, id, callback) {
+		//TODO no shadow if its a single tile
+		var name = buildingName.toLowerCase();
+		var resource = this.resources.get(name);
 		var rotation = 0; // TODO if building need to rotated depending on the position
-
+		var building;
+		var dimension = Editor.getPosition({
+			x: resource.dimension.width,
+			y: resource.dimension.height
+		});
+		var position = Editor.getPosition(coord);
+		
 		var item = {
 			id: id,
 			image: resource.image,
 			x: position.x,
 			y: position.y,
-			width: getPixelsize(resource.size.width),
-			height: getPixelsize(resource.size.height),
+			width: dimension.x,
+			height: dimension.y,
 			draggable: true,
 			rotation: rotation,
 			shadowColor: 'black',
@@ -53,52 +45,70 @@ var LandPanel = Class.extend({
 			shadowOffset: { x: 5, y: 5 },
 			shadowOpacity: 0.6,
 			startScale: 1,
-			buildingType: name.toUpperCase()
+			buildingName: buildingName.toUpperCase()
 		};
 
 		if (name === "keep") item.draggable = false;
 
-		var building = new Konva.Image(item);
-
-		//TODO no shadow if its moat
+		building = new Konva.Image(item);
 
 		this._layer.add(building);
 		this.repaint();
 	},
 
-	findBuilding: function(id) {
+	removeBuilding: function(id) {
+		var building = this._findBuilding(id);
+
+		building.destroy();
+
+		this.repaint();
+	},
+
+	_findBuilding: function(id) {
 
 		if (id.charAt(0) !== "#") {
 			id = "#" + id;
 		}
 
-		var building = this._stage.find(id)[0];
-
-		return building;
+		return this._stage.find(id)[0];
 	},
 
-	repaint: function() {
-		//TODO make it update the Konva canvas when an building is added
-		//console.log("repaint");
-		this._stage.draw();
-	},
+	setPosition: function(shape, position) { shape.setPosition(position); },
 
-	importData: function(text) {
-		this.castle.importData(text);
-
+	dragstartBuilding: function(shape) {
+		shape.moveTo(this._dragLayer);
 		this.repaint();
+
+		shape.setAttrs({
+			shadowOffset: { x: 15, y: 15 },
+			scale: {
+				x: shape.getAttr('startScale'),
+				y: shape.getAttr('startScale')
+			}
+		});
 	},
 
-	clearData: function() {
-		this.resetGridData();
+	dragendBuilding: function(shape) {
+		shape.moveTo(this._layer);
 		this.repaint();
+
+		shape.to({
+			duration: 0.5,
+			easing: Konva.Easings.ElasticEaseOut,
+			scaleX: shape.getAttr('startScale'),
+			scaleY: shape.getAttr('startScale'),
+			shadowOffsetX: 5,
+			shadowOffsetY: 5,
+		});
 	},
 
-	resetGridData: function() {
-		// set the keep
-		this.addBuilding("keep", { x: 22 * 14, y: 22 * 14 });
+	reset: function() { this._layer.getChildren().destroy(); },
 
-		//this.castle._resetGridData();
-	}
+	repaint: function() { this._stage.draw(); },
 
+	getStage: function() { return this._stage; },
+
+	getDimension: function() { return this._dimension; },
+
+	getGridOffset: function() { return this._gridOffset; }
 });
