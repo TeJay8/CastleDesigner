@@ -2,26 +2,12 @@
 var Editor = Class.extend({
 
 	constructor: function(resources, landPanel, buildingPanel) {
-		var self = this;
-
 		this.resources = resources;
-
 		this._version = "0.1";
 
 		this._castle = new Castle();
 		this._landPanel = new LandPanel(resources, landPanel);
-		this._buildingPanel = new BuildingPanel(resources, buildingPanel, function() {
-			var buildingName = this.name;
-			var coord = self._castle.getEmptyCoord(buildingName);
-
-			if (buildingName === "killing_pit" || buildingName === "moat" || buildingName === "stone_wall" || buildingName === "wooden_wall") {
-				self.addDraggable(buildingName);
-			} else if (coord) {
-				self.addBuilding(coord, buildingName);
-			} else {
-				alert("No more buildings can be added");
-			}
-		});
+		this._buildingPanel = new BuildingPanel(resources, buildingPanel);
 
 		this.set();
 		this.reset();
@@ -31,25 +17,85 @@ var Editor = Class.extend({
 		var self = this;
 		var coordFrom = {};
 		var coordTo = {};
+		var tileBuilding = {};
+		var removeId = -1;
+		var addDraggable = false;
+		var nameDraggable = "";
+		var coordStart = {};
+		var coordEnd = {};
 
+		// addBuilding buttons
+		this._buildingPanel.set(function() {
+			var buildingName = this.name;
+			var coord = self._castle.getEmptyCoord(buildingName);
+
+			if (buildingName === "killing_pit" || buildingName === "moat" || buildingName === "stone_wall" || buildingName === "wooden_wall") {
+				addDraggable = true;
+				nameDraggable = buildingName;
+			} else if (coord) {
+				self.addBuilding(coord, buildingName);
+			} else {
+				alert("No more buildings can be added");
+			}
+		});
+
+		// remove a value
+		//this._landPanel.getStage().on("click", function(evt) {
+		//	var shape = evt.target;
+		//
+		//	if (shape.getClassName() === "Circle") {
+		//		self.removeBuilding(shape.getAttr("del"));
+		//	}
+		//
+		//	if (removeId !== -1) {
+		//		self._landPanel.removeBuilding(removeId);
+		//		removeId = -1;
+		//	}
+		//
+		//	if (shape.getClassName() === "Image" && shape.getAttr("buildingName") !== "KEEP") {
+		//		removeId = self._landPanel.clickBuilding(shape, self.getCoord(shape.getPosition()));
+		//	}
+		//});
+		
+		$("#" + this._landPanel._target).mousedown(function(evt) {
+
+			if (addDraggable) {
+				coordStart = self.getCoord({ x: evt.offsetX, y: evt.offsetY });
+			}
+		});
+
+		$("#" + this._landPanel._target).mouseup(function(evt) {
+
+			if (addDraggable) {
+				coordEnd = self.getCoord({ x: evt.offsetX, y: evt.offsetY });
+
+				self.addBuildings(coordStart, coordEnd, nameDraggable);
+
+				addDraggable = false;
+			}
+		});
+
+		// move a building
 		this._landPanel.getStage().on("dragstart", function(evt) {
 			var shape = evt.target;
 
 			coordFrom = self.getCoord(shape.getPosition());
+			tileBuilding = self._castle.removeBuilding(coordFrom, false);
 
 			self._landPanel.dragstartBuilding(shape);
 		});
 
 		this._landPanel.getStage().on("dragend", function(evt) {
 			var shape = evt.target;
+			var buildingName = tileBuilding.getBuildingType().getOrdinal();
 
 			coordTo = self.getCoord(shape.getPosition());
-			// TODO: remove castle grid values of the building that is moved
 
-			if (self._castle.isValidCoord(coordTo, shape.getAttr("buildingName"))) {
-				self.moveBuilding(coordFrom, coordTo, shape.getAttr("id"));
+			if (self._castle.isValidCoord(coordTo, buildingName)) {
+				self._castle.addBuilding(coordTo, buildingName, tileBuilding.getBuildingId());
 				self._landPanel.setPosition(shape, Editor.getPosition(coordTo));
 			} else {
+				self._castle.addBuilding(coordFrom, buildingName, tileBuilding.getBuildingId());
 				self._landPanel.setPosition(shape, Editor.getPosition(coordFrom));
 			}
 
@@ -102,10 +148,30 @@ var Editor = Class.extend({
 		this._castle.addBuilding(coordTo, tileBuilding.getBuildingType().getOrdinal(), tileBuilding.getBuildingId());
 	},
 
-	addDraggable: function(buildingName) {
-		//TODO: a drag function that work only with walls and moat to place large amount of pieces
-		console.log("start dragging the building ", buildingName);
+	addBuildings: function(coord1, coord2, buildingName) {
+		// just add on the place that are free and single tiles
+		var self = this;
+		var grid = this._castle.getGrid();
+		var min = grid.min(coord1, coord2);
+		var max = grid.max(coord1, coord2);
+		var length = {
+			width:  max.x - min.x,
+			height: max.y - min.y
+		};
+		var coords = [];
+
+		grid.loop(function(tileBuilding, index) {
+
+			if ( !(tileBuilding instanceof TileBuilding)) {
+				coords[coords.length] = grid.getCoord(index);
+			} 
+		}, min, length);
+
+		id = this._castle.addBuildings(coords, buildingName);
+		this._landPanel.addBuildings(coords, buildingName, id);
 	},
+
+	removebuildings: function(coord1, coord2) {},
 
 	reset: function() {
 		var buildingName = "KEEP";

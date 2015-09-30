@@ -1,14 +1,17 @@
 
 var BuildingPanel = Class.extend({
 
-	constructor: function(resources, target, callback, dimension, button) {
+	constructor: function(resources, target, dimension, button) {
 		this.resources = resources;
 
 		this._target = $("#" + target);
-		this._callback = callback;
 		this._dimension = dimension || { width: 2, height: 7 };
 		this._button = button || { width: 100, height: 70 };
 		this._order = ["tower", "stone", "gatehouse", "wooden", "rest"];
+	},
+
+	set: function(callback) {
+		this._callback = callback;
 
 		var keys = this._sortKeys(this.resources.keys());
 		var x, y, index;

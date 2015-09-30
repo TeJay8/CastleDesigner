@@ -8,6 +8,9 @@ var LandPanel = Class.extend({
 		this._dimension = dimension || { width: 676, height: 676 };//688
 		this._gridOffset = gridOffset || { x: 0, y: 0 };
 
+		this._radius = 4;
+		this._edge = 4;
+
 		this._stage = new Konva.Stage({
 			container: this._target,
 			width: this._dimension.width,
@@ -19,7 +22,7 @@ var LandPanel = Class.extend({
 		this._stage.add(this._layer, this._dragLayer);
 	},
 
-	addBuilding: function(coord, buildingName, id, callback) {
+	addBuilding: function(coord, buildingName, id, update) {
 		//TODO no shadow if its a single tile
 		var name = buildingName.toLowerCase();
 		var resource = this.resources.get(name);
@@ -53,7 +56,10 @@ var LandPanel = Class.extend({
 		building = new Konva.Image(item);
 
 		this._layer.add(building);
-		this.repaint();
+
+		if (update !== false) {
+			this.repaint();
+		}
 	},
 
 	removeBuilding: function(id) {
@@ -64,9 +70,19 @@ var LandPanel = Class.extend({
 		this.repaint();
 	},
 
+	addBuildings: function(coords, buildingName, id) {
+		var i, j;
+
+		for (i = 0, j = coords.length; i < j; i++) {
+			this.addBuilding(coords[i], buildingName, id, false);
+		}
+
+		this.repaint();
+	},
+
 	_findBuilding: function(id) {
 
-		if (id.charAt(0) !== "#") {
+		if (id.toString().charAt(0) !== "#") {
 			id = "#" + id;
 		}
 
@@ -74,6 +90,25 @@ var LandPanel = Class.extend({
 	},
 
 	setPosition: function(shape, position) { shape.setPosition(position); },
+
+	clickBuilding: function(shape, coord) {
+		
+		var circle = new Konva.Circle({
+			x: shape.getX() + shape.getWidth() - this._radius / 2 - this._edge,
+			y: shape.getY() + this._radius / 2 + this._edge,
+			radius: this._radius,
+			fill: 'red',
+			stroke: 'black',
+			strokeWidth: 1,
+			del: coord,
+			id: 5
+		});
+
+		this._layer.add(circle);
+		this.repaint();
+
+		return circle.getAttr("id");
+	},
 
 	dragstartBuilding: function(shape) {
 		shape.moveTo(this._dragLayer);

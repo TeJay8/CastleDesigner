@@ -29,8 +29,7 @@ var Castle = Class.extend({
 		this._grid.setValues(tileBuilding, keys);
 
 		if (update !== false) {
-			//this._push(tileBuilding, keys, "setValues", "removeValues");
-			this._pushString(this._grid.toString());
+			this._push(this._grid.toString());
 
 			this._updateDesignStats();
 		}
@@ -53,13 +52,23 @@ var Castle = Class.extend({
 		this._grid.removeValues(keys);
 
 		if (update !== false) {
-			//this._push(tileBuilding, keys, "removeValues", "setValues");
-			this._pushString(this._grid.toString());
+			this._push(this._grid.toString());
 			
 			this._updateDesignStats();
 		}
 
 		return tileBuilding;
+	},
+
+	addBuildings: function(coords, buildingName) {
+		var i, j;
+		var id = this._getNewId(buildingName);
+
+		for (i = 0, j = coords.length; i < j; i++) {
+			this.addBuilding(coords[i], buildingName, id, false);
+		}
+
+		return id;
 	},
 
 	reset: function() { this._grid.reset(); },
@@ -69,8 +78,19 @@ var Castle = Class.extend({
 	getTotalResource: function(resource) { return this._buildingResources.get(resource); },
 
 	getTotalBuildingTime: function() { return this._totalBuildingTime; },
+
+	getGrid: function() { return this._grid; },
 	
-	_getNewId: function() { return ++this._lastIdUsed; },
+	_getNewId: function(buildingName) {
+
+		switch (buildingName) {
+			case "killing_pit": case "KILLING_PIT": return 1;
+			case "moat":        case "MOAT":        return 2;
+			case "stone_wall":  case "STONE_WALL":  return 3;
+			case "wooden_wall": case "WOODEN_WALL": return 4;
+			default: return ++this._lastIdUsed;
+		}
+	},
 
 	_updateDesignStats: function() {
 		var buildingCounts = new Map();
@@ -155,27 +175,7 @@ var Castle = Class.extend({
 		return true;
 	},
 
-	_push: function(argsFirst, argSecond, forward, backward) {
-
-		if (this._callStackCurrent === -1) {
-			this._callStackCurrent = 0;
-		}
-
-		if (this._callStackCurrent < this._callStackLength) {
-			this._callStackCurrent++;
-		}
-
-		this._callStack[this._callStackCurrent] = {
-			argsFirst: argsFirst,
-			argSecond: argSecond,
-			action: {
-				forward: forward,
-				backward: backward
-			}
-		};
-	},
-
-	_pushString: function(string) {
+	_push: function(string) {
 		if (this._callStack.length >= this._callStackLength) {
 			this._callStack.splice(0, 1);
 		} else {
