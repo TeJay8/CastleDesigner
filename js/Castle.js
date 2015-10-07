@@ -29,8 +29,7 @@ var Castle = Class.extend({
 		this._grid.setValues(tileBuilding, keys);
 
 		if (update !== false) {
-			this._push(this._grid.toString());
-
+			//this._push(this._grid.toString());
 			this._updateDesignStats();
 		}
 
@@ -47,13 +46,12 @@ var Castle = Class.extend({
 		this._setSelectedBuilding(tileBuilding.getBuildingType().getOrdinal());
 
 		var id = tileBuilding.getBuildingId();
-		var keys = this._grid.getKeys(coord, tileBuilding.getBuildingType().getDimension());
+		var keys = this._grid.getKeys(this._getBaseCoord(coord), tileBuilding.getBuildingType().getDimension());
 
 		this._grid.removeValues(keys);
 
 		if (update !== false) {
-			this._push(this._grid.toString());
-			
+			//this._push(this._grid.toString());
 			this._updateDesignStats();
 		}
 
@@ -61,17 +59,79 @@ var Castle = Class.extend({
 	},
 
 	addBuildings: function(coords, buildingName) {
-		var i, j;
-		var id = this._getNewId(buildingName);
-
+		var i, j, id;
+		var ret = [];
+		
 		for (i = 0, j = coords.length; i < j; i++) {
+			id = this._getNewId();
+
 			this.addBuilding(coords[i], buildingName, id, false);
+
+			ret.push(id);
 		}
 
-		return id;
+		if (coords.length > 0) {
+			//this._push(this._grid.toString());
+			this._updateDesignStats();
+		}
+
+		return ret;
 	},
 
-	reset: function() { this._grid.reset(); },
+	removeBuildings: function(coords) {
+		var i, j;
+
+		for (i = 0, j = coords.length; i < j; i++) {
+			this.removeBuilding(coords[i], false);
+		}
+
+		if (coords.length > 0) {
+			//this._push(this._grid.toString());
+			this._updateDesignStats();
+		}
+	},
+
+	reset: function() {
+		var self = this;
+
+		this._grid.reset();
+		this._buildingQuantities = new Map();
+
+		this._forEach(Building.Type, function(buildingType, buildingName) {
+			self._buildingQuantities.set(buildingName, 0);
+		});
+	},
+
+	_getBaseCoord: function(coord) {
+		var tileBuilding =  this._grid.getValue(coord);
+		var tb,	x = coord.x, y = coord.y;
+
+		if (tileBuilding === undefined) {
+			return { x: -1, y: -1 };
+		}
+
+		while (x >= 0) {
+			tb = this._grid.getValue({ x: x - 1, y: y});
+
+			if (tb === tileBuilding) {
+				x--;
+			} else {
+				break;
+			}
+		}
+
+		while (y >= 0) {
+			tb = this._grid.getValue({ x: x, y: y - 1});
+
+			if (tb === tileBuilding) {
+				y--;
+			} else {
+				break;
+			}
+		}
+
+		return { x: x, y: y };
+	},
 
 	getNumberOfBuildings: function(buildingType) { return this._buildingQuantities.get(buildingType); },
 
@@ -81,16 +141,7 @@ var Castle = Class.extend({
 
 	getGrid: function() { return this._grid; },
 	
-	_getNewId: function(buildingName) {
-
-		switch (buildingName) {
-			case "killing_pit": case "KILLING_PIT": return 1;
-			case "moat":        case "MOAT":        return 2;
-			case "stone_wall":  case "STONE_WALL":  return 3;
-			case "wooden_wall": case "WOODEN_WALL": return 4;
-			default: return ++this._lastIdUsed;
-		}
-	},
+	_getNewId: function(buildingName) { return ++this._lastIdUsed; },
 
 	_updateDesignStats: function() {
 		var buildingCounts = new Map();
@@ -136,7 +187,7 @@ var Castle = Class.extend({
 	_calculateNumberOfBuildings: function(buildingType, numberOfTiles) {
 		var dimension = buildingType.getDimension();
 
-		return Math.floor(numberOfTiles / dimension.width * dimension.height);
+		return Math.floor(numberOfTiles / (dimension.width * dimension.height));
 	},
 
 	backward: function() {
@@ -208,6 +259,7 @@ var Castle = Class.extend({
 
 			if (self.isValidCoord(coord, buildingName) && ret === false) {
 				ret = coord;
+				return -1;
 			}
 		});
 
@@ -218,7 +270,7 @@ var Castle = Class.extend({
 
 		this._setSelectedBuilding(buildingName);
 
-		if (this._fitsinGrid(coord) && this._isBuildable(coord)) {
+		if (this._fitsinGrid(coord) && this._isBuildable(coord) && this._hasMaxBuildings()) {
 
 			if (this._selectedBuilding.getGapRequired()) {
 				return this._isGapSatisfied(coord);
@@ -251,6 +303,7 @@ var Castle = Class.extend({
 				tileBuilding.getBuildingType() !== Building.Type.STONE_WALL) {
 
 				ret = false;
+				return -1;
 			}
 		}, coord, dimension);
 
@@ -265,18 +318,29 @@ var Castle = Class.extend({
 			y: coord.y - 1
 		};
 		var end = {
-			width: dimension.width + 1,
-			height: dimension.height + 1
+			width: dimension.width + 2,
+			height: dimension.height + 2
 		};
 
 		this._grid.loop(function(tileBuilding, index) {
 
 			if (tileBuilding !== undefined && tileBuilding.getBuildingType().getGapRequired()) {
 				ret = false;
+				return -1;
 			}
 		}, start, end);
 
 		return ret;
+	},
+
+	_hasMaxBuildings: function() { 
+		var max = this._selectedBuilding.getMaxBuildings();
+
+		if (max === -1 || this.getNumberOfBuildings(this._selectedBuilding.getOrdinal()) < max) {
+			return true;
+		}
+
+		return false;
 	},
 
 	_forEach: function(obj, callback, ctx) {

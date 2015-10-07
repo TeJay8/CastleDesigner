@@ -1,8 +1,6 @@
 
-var editor;
-
 $(document).ready(function() {
-	// data of the building Konva to save data instead of Castle class
+	// data of the building
 	var data = {
 		ballista_tower: {
 			buildTime: 18000,
@@ -147,16 +145,18 @@ $(document).ready(function() {
 			image: "images/wooden_wall.png",
 			max: -1,
 			resourceCosts: [ 0, 20, 0, 0 ]
+		},
+		eraser: {
+			dimension: { width: 2, height: 2 },
+			image: "images/eraser.png"
 		}
 	};
 	var resources = new Resources(data);
 
 	Building.set(resources);
-	//TODO: when click opens a widget with options
-	editor = new Editor(resources, "container", "buildings");
-
-	//for (var i = 0; i < 10; i++) {
-	//	var buildingName = "great_tower";
-	//	console.log("gets added to grid ", editor.addBuilding(editor._castle.getEmptyCoord(buildingName), buildingName));
-	//}
+	// TODO: css clean up
+	// TODO: change the cursor: body, html { cursor: url(cursor.gif), pointer;
+	// TODO: click and drag should be animated maybe add a bunch Images to the canvas off screen and the setPosition all of them.
+	
+	var editor = new Editor(resources, "container", "buildings");
 });

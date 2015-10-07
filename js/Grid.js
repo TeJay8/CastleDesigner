@@ -187,10 +187,6 @@ var Grid = Class.extend({
 		}
 	},
 
-	//_loopAtIndex: function(callback, start, end) {
-	//	this._loopAtCoord(callback, this.getCoord(start), this.getCoord(end));
-	//},
-
 	_loopAtCoord: function(callback, coord, dimension) { 
 		var x, y, index, br = false;
 		var length = {
@@ -286,21 +282,16 @@ var Grid = Class.extend({
 		}
 	},
 
-	min: function(coord1, coord2) {
-		var index1 = this._getIndex(coord1);
-		var index2 = this._getIndex(coord2);
-
-		if (index1 <= index2) return coord1;
-		if (index1 > index2) return coord2;
+	_f: function(math, coord1, coord2) {
+		return {
+			x: math(coord1.x, coord2.x),
+			y: math(coord1.y, coord2.y)
+		};
 	},
 
-	max: function(coord1, coord2) { 
-		var index1 = this._getIndex(coord1);
-		var index2 = this._getIndex(coord2);
+	min: function(coord1, coord2) { return this._f(Math.min, coord1, coord2); },
 
-		if (index1 >= index2) return coord1;
-		if (index1 < index2) return coord2;
-	},
+	max: function(coord1, coord2) { return this._f(Math.max, coord1, coord2); },
 
 	getDimension: function() { return this._dimension; },
 

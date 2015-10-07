@@ -7,24 +7,22 @@ var BuildingPanel = Class.extend({
 		this._target = $("#" + target);
 		this._dimension = dimension || { width: 2, height: 7 };
 		this._button = button || { width: 100, height: 70 };
-		this._order = ["tower", "stone", "gatehouse", "wooden", "rest"];
+		this._materials = [ "STONE", "WOOD", "IRON", "GOLD" ];
 	},
 
 	set: function(callback) {
 		this._callback = callback;
 
-		var keys = this._sortKeys(this.resources.keys());
-		var x, y, index;
-
-		// set the buttons panel
-		for (y = 0; y < Math.floor(keys.length / this._dimension.width); y++) {
-			for (x = 0; x < this._dimension.width; x++) {
-
-				index = (y * this._dimension.width) + x;
-
-				this.addButton(keys[index]);
-			}
+		var keys = this._sortKeys();
+		
+		for (i = 0, j = keys.length; i < j; i++) {
+			this.addButton(keys[i]);
 		}
+
+		this.addDivider();
+		this.addButton("eraser");
+		//this.addButton("save");
+		this.addDivider();
 
 		// TODO set the quantities panel
 		// TODO set the resources panel
@@ -32,80 +30,94 @@ var BuildingPanel = Class.extend({
 	},
 
 	addButton: function(name) {
-		var div = $("<div></div>");
 		var button = $("<button name='" + name + "' title='" + this._cleanUp(name) + "'></buttons>");
-		var dimension = Building.Type[name.toUpperCase()].getDimension();
+		//var dimension = Building.Type[name.toUpperCase()].getDimension();
+		var dimension;
+		var resource = this.resources.get(name);
 
-		dimension = { 
-			width: Editor.getPixels(dimension.width),
-			height: Editor.getPixels(dimension.height)
-		};
+		if (resource) {
 
-		button.click(this._callback);
-		button.css({
-			position: "relative",
-			background: "url(" + this.resources.get(name).image.src + ") no-repeat",
-			backgroundSize: "100%",
-			width: dimension.width,
-			height: dimension.height,
-			margin: "auto",
-			left: (this._button.width - dimension.width) / 2,
-			top: (this._button.height - dimension.height) / 2,
+			dimension = { 
+				width: Editor.getPixels(resource.dimension.width),
+				height: Editor.getPixels(resource.dimension.height)
+			};
+
+			button.click(this._callback);
+			button.css({
+				position: "relative",
+				background: "url(" + resource.image.src + ") no-repeat",
+				backgroundSize: "100%",
+				width: dimension.width,
+				height: dimension.height,
+				margin: "auto",
+				left: (this._button.width - dimension.width) / 2,
+				top: (this._button.height - dimension.height) / 2,
+			});
+
+			this._setElement(button);
+		}
+	},
+
+	addDivider: function() {
+		var hr = $("<hr>");
+
+		this._setElement(hr, {
+			width: this._dimension.width * this._button.width,
+			height: 5
 		});
+	},
+
+	_setElement: function(element, dimension) {
+		var div = $("<div></div>");
+
+		if (dimension === undefined) {
+			dimension = this._button;
+		}
 
 		div.css({
 			"float": "left",
-			width: this._button.width,
-			height: this._button.height
+			width: dimension.width,
+			height: dimension.height
 		});
 
-		div.append(button);
+		div.append(element);
 
 		this._target.append(div);
 	},
 
-	_contains: function(array, str) {
+	_largestMaterial: function(materials) {
 		var i, j;
+		var largest = 0;
 
-		for (i = 0, j = array.length; i < j; i++) {
-			if (array[i] === str) return true;
-		}
-
-		return false;
-	},
-
-	_sortKeys: function(keys) {
-		// TODO sort by material [ STONE, WOOD, IRON, STONE ]
-		var ret = [];
-		var i, j, indexOf, name, current;
-		var index = 0;
-
-		for (i = 0; i < this._order.length; i++) {
-			current = this._order[i];
-
-			for (j = 0; j < keys.length; j++) {
-				name = keys[j];
-
-				if (current !== "rest") {
-
-					indexOf = name.indexOf(current);
-
-					if (indexOf >= 0 && name !== "keep" && !this._contains(ret, name)) {
-
-						ret[index] = name;
-						index++;
-					}
-				} else {
-					if (name !== "keep" && !this._contains(ret, name)) {
-						
-						ret[index] = name;
-						index++;
-					}
-				}
+		for (i = 1, j = materials.length; i < j; i++) {
+			if (materials[i - 1] < materials[i]) {
+				largest = i;
 			}
 		}
 
-		return ret;
+		return this._materials[largest];
+	},
+
+	_sortKeys: function() {
+		var ret = {
+			STONE: [],
+			WOOD: [],
+			IRON: [],
+			GOLD: []
+		};
+		var i, j, key, resource;
+		var keys = this.resources.keys();
+
+		for (i = 0; i < keys.length; i++) {
+			key = keys[i];
+			resource = this.resources.get(key);
+
+			if (resource.hasOwnProperty("resourceCosts") && key !== "keep") {
+				ret[this._largestMaterial(resource.resourceCosts)].push(key);
+			}
+		}
+		
+		return ret.STONE.concat( ret.WOOD.concat( ret.IRON.concat( ret.GOLD ) ) );
 	},
 
 	_cleanUp: function(str) {

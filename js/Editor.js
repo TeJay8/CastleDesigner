@@ -14,103 +14,159 @@ var Editor = Class.extend({
 	},
 
 	set: function() {
+		// object reference
 		var self = this;
-		var coordFrom = {};
-		var coordTo = {};
-		var tileBuilding = {};
-		var removeId = -1;
-		var addDraggable = false;
-		var nameDraggable = "";
-		var coordStart = {};
-		var coordEnd = {};
+		var stage = this._landPanel.getStage();
+		// position and coords
+		var mouseOffset = {};
+		var position = {};
+		var mousedown = false;
+		var sliding = false;
+		var dragging = false;
+		// addBuilding variables
+		var inEraser = false;
+		var inLimbo = false;
+		var inLimboShape;
+		var inLimboName = "";
+		// dragBuilding variables
+		var dragCoordFrom = {};
+		var dragCoordTo = {};
+		var dragBuilding;
 
-		// addBuilding buttons
 		this._buildingPanel.set(function() {
-			var buildingName = this.name;
-			var coord = self._castle.getEmptyCoord(buildingName);
+			inLimboName = this.name;
 
-			if (buildingName === "killing_pit" || buildingName === "moat" || buildingName === "stone_wall" || buildingName === "wooden_wall") {
-				addDraggable = true;
-				nameDraggable = buildingName;
-			} else if (coord) {
-				self.addBuilding(coord, buildingName);
-			} else {
-				alert("No more buildings can be added");
+			if (inLimbo || inEraser) {
+				self._landPanel.remove(inLimboShape);
+				inLimbo = false;
+				inEraser = false;
+			}
+
+			if (inLimboName === "eraser") {
+				inEraser = true;
+			}
+
+			inLimboShape = self._landPanel.create(inLimboName, true);
+			mouseOffset = {
+				x: inLimboShape.attrs.width  / 2,
+				y: inLimboShape.attrs.height / 2
+			};
+			inLimbo = true;
+
+			self._landPanel.dragstartBuilding(inLimboShape);
+		});
+
+		stage.on("contentMousedown.proto", function(evt) {
+			evt.evt.preventDefault();
+
+			if (!dragging) {
+				
+				mousedown = true;
+
+				dragCoordFrom = self.getCoord(stage.getPointerPosition());
 			}
 		});
 
-		// remove a value
-		//this._landPanel.getStage().on("click", function(evt) {
-		//	var shape = evt.target;
-		//
-		//	if (shape.getClassName() === "Circle") {
-		//		self.removeBuilding(shape.getAttr("del"));
-		//	}
-		//
-		//	if (removeId !== -1) {
-		//		self._landPanel.removeBuilding(removeId);
-		//		removeId = -1;
-		//	}
-		//
-		//	if (shape.getClassName() === "Image" && shape.getAttr("buildingName") !== "KEEP") {
-		//		removeId = self._landPanel.clickBuilding(shape, self.getCoord(shape.getPosition()));
-		//	}
-		//});
-		
-		$("#" + this._landPanel._target).mousedown(function(evt) {
+		stage.on("contentMousemove.proto", function() {
+	
+			if (inLimbo && !mousedown && !dragging) {
+				var pos = stage.getPointerPosition();
 
-			if (addDraggable) {
-				coordStart = self.getCoord({ x: evt.offsetX, y: evt.offsetY });
+				position = {
+					x: pos.x - mouseOffset.x,
+					y: pos.y - mouseOffset.y
+				};
+				inLimboShape.setPosition(position);
+				stage.children[1].batchDraw();
+			}
+
+			if (mousedown) {
+				// animate the sliding of the mouse
+				sliding = true;
 			}
 		});
 
-		$("#" + this._landPanel._target).mouseup(function(evt) {
+		stage.on("contentMouseup.proto", function(evt) {
+			var e = evt.evt, coord;
 
-			if (addDraggable) {
-				coordEnd = self.getCoord({ x: evt.offsetX, y: evt.offsetY });
+			e.preventDefault();
 
-				self.addBuildings(coordStart, coordEnd, nameDraggable);
-
-				addDraggable = false;
+			if (e.button === 2) {
+				self._landPanel.remove(inLimboShape);
+				inLimbo = false;
+				inEraser = false;
 			}
+
+			if (e.button === 0 && !dragging) {
+				if (inEraser && sliding) {
+					coord = self.getCoord(stage.getPointerPosition());
+
+					self.removeBuildings(dragCoordFrom, coord);
+				} else if (inEraser) {
+					coord = self.getCoord(stage.getPointerPosition());
+
+					self.removeBuilding(coord);
+				} else if (sliding) {
+					coord = self.getCoord(stage.getPointerPosition());
+
+					self.addBuildings(dragCoordFrom, coord, inLimboName);
+				} else if (inLimbo) {
+					coord = self.getCoord(position);
+
+					self.addBuilding(coord, inLimboName);
+				}
+			}
+
+			mousedown = false;
+			sliding = false;
 		});
 
 		// move a building
-		this._landPanel.getStage().on("dragstart", function(evt) {
-			var shape = evt.target;
+		stage.on("dragstart", function(evt) {
 
-			coordFrom = self.getCoord(shape.getPosition());
-			tileBuilding = self._castle.removeBuilding(coordFrom, false);
+			if (!inLimbo && !inEraser) {
+				var shape = evt.target;
 
-			self._landPanel.dragstartBuilding(shape);
+				dragCoordFrom = self.getCoord(shape.getPosition());
+				dragBuilding = self._castle.removeBuilding(dragCoordFrom, false);
+
+				self._landPanel.dragstartBuilding(shape);
+
+				dragging = true;
+			}
 		});
 
-		this._landPanel.getStage().on("dragend", function(evt) {
-			var shape = evt.target;
-			var buildingName = tileBuilding.getBuildingType().getOrdinal();
+		stage.on("dragend", function(evt) {
 
-			coordTo = self.getCoord(shape.getPosition());
+			if (!inLimbo && !inEraser) {
+				var shape = evt.target;
+				var buildingName = dragBuilding.getBuildingType().getOrdinal();
 
-			if (self._castle.isValidCoord(coordTo, buildingName)) {
-				self._castle.addBuilding(coordTo, buildingName, tileBuilding.getBuildingId());
-				self._landPanel.setPosition(shape, Editor.getPosition(coordTo));
-			} else {
-				self._castle.addBuilding(coordFrom, buildingName, tileBuilding.getBuildingId());
-				self._landPanel.setPosition(shape, Editor.getPosition(coordFrom));
+				dragCoordTo = self.getCoord(shape.getPosition());
+
+				if (self._castle.isValidCoord(dragCoordTo, buildingName)) {
+					self._castle.addBuilding(dragCoordTo, buildingName, dragBuilding.getBuildingId());
+					self._landPanel.setPosition(shape, Editor.getPosition(dragCoordTo));
+				} else {
+					self._castle.addBuilding(dragCoordFrom, buildingName, dragBuilding.getBuildingId());
+					self._landPanel.setPosition(shape, Editor.getPosition(dragCoordFrom));
+				}
+
+				self._landPanel.dragendBuilding(shape);
 			}
 
-			self._landPanel.dragendBuilding(shape);
+			dragging = false;
 		});
 
 		// add cursor styling
-		this._landPanel.getStage().on("mouseover", function(evt) {
+		stage.on("mouseover", function(evt) {
 
-			if (evt.target.getAttr("draggable")) {
+			if (evt.target.getAttr("draggable") && !inLimbo) {
 				document.body.style.cursor = "pointer";
 			}
 		});
 
-		this._landPanel.getStage().on("mouseout", function() {
+		stage.on("mouseout", function() {
 			document.body.style.cursor = "default";
 		});
 	},
@@ -122,7 +178,7 @@ var Editor = Class.extend({
 
 		if (this._castle.isValidCoord(coord, buildingName)) {
 			id = this._castle.addBuilding(coord, buildingName, id);
-			this._landPanel.addBuilding(coord, buildingName, id);
+			this._landPanel.addBuilding(coord, buildingName, id, this.isSingleTile(buildingName));
 
 			return true;
 		}
@@ -131,11 +187,13 @@ var Editor = Class.extend({
 	},
 
 	removeBuilding: function(coord) {
-		var tileBuilding = this._castle.removeBuilding(coord);
+		if (this._castle._grid.getValue(coord) !== undefined) {
+			var tileBuilding = this._castle.removeBuilding(coord);
 
-		this._landPanel.removeBuilding(tileBuilding.getBuildingId());
+			this._landPanel.removeBuilding(tileBuilding.getBuildingId());
 
-		return tileBuilding;
+			return tileBuilding;
+		}
 	},
 
 	moveBuilding: function(coordFrom, coordTo, id) {
@@ -151,6 +209,7 @@ var Editor = Class.extend({
 	addBuildings: function(coord1, coord2, buildingName) {
 		// just add on the place that are free and single tiles
 		var self = this;
+		var i, j;
 		var grid = this._castle.getGrid();
 		var min = grid.min(coord1, coord2);
 		var max = grid.max(coord1, coord2);
@@ -159,19 +218,59 @@ var Editor = Class.extend({
 			height: max.y - min.y
 		};
 		var coords = [];
+		var coordsRemove = [];
+		var idsRemove = [];
+
+		grid.loop(function(tileBuilding, index) {
+			var coord = grid.getCoord(index);
+
+			if ( !(tileBuilding instanceof TileBuilding)) {
+				coords.push(coord);
+			}
+
+			if (tileBuilding instanceof TileBuilding) {
+
+				if (self.isSingleTile(tileBuilding.getBuildingType().getOrdinal())) {
+					idsRemove.push(tileBuilding.getBuildingId());
+					coordsRemove.push(coord);
+					coords.push(coord);
+				}
+			}
+			
+		}, min, length);
+
+		for (i = 0, j = coordsRemove.length; i < j; i++) {
+			this.removeBuilding(coordsRemove[i]);
+		}
+
+		for (i = 0, j = coords.length; i < j; i++) {
+			this.addBuilding(coords[i], buildingName);
+		}
+	},
+
+	removeBuildings: function(coord1, coord2) {
+		var self = this;
+		var grid = this._castle.getGrid();
+		var min = grid.min(coord1, coord2);
+		var max = grid.max(coord1, coord2);
+		var length = {
+			width:  max.x - min.x,
+			height: max.y - min.y
+		};
+		var ids = [];
+		var coords = [];
 
 		grid.loop(function(tileBuilding, index) {
 
-			if ( !(tileBuilding instanceof TileBuilding)) {
-				coords[coords.length] = grid.getCoord(index);
-			} 
+			if (tileBuilding !== undefined) {
+				ids.push(tileBuilding.getBuildingId());
+				coords.push(grid.getCoord(index));
+			}
 		}, min, length);
 
-		id = this._castle.addBuildings(coords, buildingName);
-		this._landPanel.addBuildings(coords, buildingName, id);
+		this._landPanel.removeBuildings(ids);
+		this._castle.removeBuildings(coords);
 	},
-
-	removebuildings: function(coord1, coord2) {},
 
 	reset: function() {
 		var buildingName = "KEEP";
@@ -194,6 +293,12 @@ var Editor = Class.extend({
 			x: (x < Castle.CASTLE_BOUNDRY_LENGTH) ? x : Castle.CASTLE_BOUNDRY_LENGTH - 1,
 			y: (y < Castle.CASTLE_BOUNDRY_LENGTH) ? y : Castle.CASTLE_BOUNDRY_LENGTH - 1
 		};
+	},
+
+	isSingleTile: function(buildingName) {
+		buildingName = buildingName.toUpperCase();
+
+		return name === "KILLING_PIT" || buildingName === "MOAT" || buildingName === "STONE_WALL" || buildingName === "WOODEN_WALL";
 	}
 }, {
 	PIXELS: 13,
@@ -203,5 +308,5 @@ var Editor = Class.extend({
 			x: Math.floor(coord.x * Editor.PIXELS),
 			y: Math.floor(coord.y * Editor.PIXELS)
 		};
-	} 
+	}
 });

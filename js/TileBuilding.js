@@ -12,5 +12,5 @@ var TileBuilding = Class.extend({
 
 	setBuildingId: function(buildingId) { this._buildingId = buildingId; },
 
-	toString: function() { return this._buildingId; }
+	toString: function() { return this._buildingType.getOrdinal().substring(0, 2) + "," + this._buildingId; }
 });

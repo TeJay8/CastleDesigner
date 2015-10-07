@@ -15,26 +15,30 @@ var Building = {
 			key = keys[i];
 			resource = resources.get(key);
 
-			Building.Type[key.toUpperCase()] = new BuildingType(
-				key.toUpperCase(),
-				resource.colour,
-				resource.dimension,
-				resource.gapRequired,
-				resource.resourceCosts,
-				resource.buildTime
-			);
+			if (resource.hasOwnProperty("max")) {
+				Building.Type[key.toUpperCase()] = new BuildingType(
+					key.toUpperCase(),
+					resource.colour,
+					resource.dimension,
+					resource.gapRequired,
+					resource.resourceCosts,
+					resource.buildTime,
+					resource.max
+				);
+			}
 		}
 	}
 };
 
 var BuildingType = Class.extend({
 
-	constructor: function(ordinal, colour, dimension, gapRequired, resourceCosts, buildTime) {
+	constructor: function(ordinal, colour, dimension, gapRequired, resourceCosts, buildTime, maxBuildings) {
 		this._ordinal = ordinal;
 		this._colour = colour;
 		this._dimension = dimension;
 		this._gapRequired = gapRequired;
 		this._buildTime = buildTime;
+		this._maxBuildings = maxBuildings;
 		//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 		this._buildingResources = new Map();
 		this._buildingResources.set(Building.Resource.STONE, resourceCosts[0]);
@@ -61,4 +65,6 @@ var BuildingType = Class.extend({
 	getCost: function(buildingResource) { return this._buildingResources.get(buildingResource); },
 
 	getBuildTime: function() { return this._buildTime; },
+
+	getMaxBuildings: function() { return this._maxBuildings; }
 });

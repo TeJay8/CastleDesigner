@@ -5,7 +5,7 @@ var LandPanel = Class.extend({
 		this.resources = resources;
 
 		this._target = target;
-		this._dimension = dimension || { width: 676, height: 676 };//688
+		this._dimension = dimension || { width: 676, height: 676 };
 		this._gridOffset = gridOffset || { x: 0, y: 0 };
 
 		this._radius = 4;
@@ -22,62 +22,54 @@ var LandPanel = Class.extend({
 		this._stage.add(this._layer, this._dragLayer);
 	},
 
-	addBuilding: function(coord, buildingName, id, update) {
-		//TODO no shadow if its a single tile
-		var name = buildingName.toLowerCase();
-		var resource = this.resources.get(name);
-		var rotation = 0; // TODO if building need to rotated depending on the position
-		var building;
-		var dimension = Editor.getPosition({
-			x: resource.dimension.width,
-			y: resource.dimension.height
-		});
-		var position = Editor.getPosition(coord);
-		
-		var item = {
-			id: id,
-			image: resource.image,
-			x: position.x,
-			y: position.y,
-			width: dimension.x,
-			height: dimension.y,
-			draggable: true,
-			rotation: rotation,
-			shadowColor: 'black',
-			shadowBlur: 10,
-			shadowOffset: { x: 5, y: 5 },
-			shadowOpacity: 0.6,
-			startScale: 1,
-			buildingName: buildingName.toUpperCase()
-		};
+	addBuilding: function(coord, buildingName, id, isSingleTile, update) {
+		var building = this.create(buildingName.toLowerCase(), !isSingleTile, id);
 
-		if (name === "keep") item.draggable = false;
+		building.setPosition( Editor.getPosition(coord) );
 
-		building = new Konva.Image(item);
-
-		this._layer.add(building);
+		if (buildingName.toLowerCase() === "keep") {
+			building.setAttr("draggable", false);
+		}
 
 		if (update !== false) {
 			this.repaint();
 		}
 	},
 
-	removeBuilding: function(id) {
+	removeBuilding: function(id, update) {
 		var building = this._findBuilding(id);
 
-		building.destroy();
+		if (building !== undefined) {
+			building.destroy();
+		}
 
-		this.repaint();
+		if (update !== false) {
+			this.repaint();
+		}
 	},
 
-	addBuildings: function(coords, buildingName, id) {
+	addBuildings: function(coords, buildingName, ids, isSingleTile) {
 		var i, j;
 
 		for (i = 0, j = coords.length; i < j; i++) {
-			this.addBuilding(coords[i], buildingName, id, false);
+			this.addBuilding(coords[i], buildingName, ids[i], isSingleTile, false);
 		}
 
-		this.repaint();
+		if (coords.length > 0) {
+			this.repaint();
+		}
+	},
+
+	removeBuildings: function(ids) {
+		var i, j;
+
+		for (i = 0, j = ids.length; i < j; i++) {
+			this.removeBuilding(ids[i], false);
+		}
+
+		if (ids.length > 0) {
+			this.repaint();
+		}
 	},
 
 	_findBuilding: function(id) {
@@ -90,6 +82,44 @@ var LandPanel = Class.extend({
 	},
 
 	setPosition: function(shape, position) { shape.setPosition(position); },
+
+	create: function(buildingName, shadow, id) {
+		var resource = this.resources.get(buildingName.toLowerCase());
+		var dimension = Editor.getPosition({
+			x: resource.dimension.width,
+			y: resource.dimension.height
+		});
+
+		if (id === undefined) {
+			id = "limbo";
+		}
+
+		var item = {
+			id: id,
+			image: resource.image,
+			width: dimension.x,
+			height: dimension.y,
+			draggable: true,
+			rotation: 0,
+			startScale: 1,
+			buildingName: buildingName.toUpperCase()
+		};
+
+		if (shadow) {
+			item.shapeshadowColor = 'black';
+			item.shadowBlur = 10;
+			item.shadowOffset = { x: 5, y: 5 };
+			item.shadowOpacity = 0.6;
+		}
+
+		var shape = new Konva.Image(item);
+
+		this._layer.add(shape);
+
+		return shape;
+	},
+
+	remove: function(shape) { this.removeBuilding(shape.getAttr("id")); },
 
 	clickBuilding: function(shape, coord) {
 		
@@ -139,7 +169,7 @@ var LandPanel = Class.extend({
 
 	reset: function() { this._layer.getChildren().destroy(); },
 
-	repaint: function() { this._stage.draw(); },
+	repaint: function() { this._stage.children[0].batchDraw(); },
 
 	getStage: function() { return this._stage; },
 
