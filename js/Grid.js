@@ -1,6 +1,31 @@
 
+// Copyright (c) 2015 Tejay.
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights 
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+// copies of the Software, and to permit persons to whom the Software is 
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 var Grid = Class.extend({
 
+	/**
+	 * constructor for the class Grid
+	 *
+	 * @method     constructor
+	 * @param      {dimension}  object with int width and int height
+	 */
 	constructor: function(dimension) {
 		this._map = [];
 		this._length = dimension.width * dimension.height;
@@ -9,11 +34,23 @@ var Grid = Class.extend({
 		this.reset();
 	},
 
+	/**
+	 * resets the grid with undefined to the grid dimension
+	 *
+	 * @method     reset
+	 */
 	reset: function() {
 		this._map = [];
 		this.setValues(undefined, this.getKeys());
 	},
 
+	/**
+	 * sets the val at the accesor
+	 *
+	 * @method     setValue
+	 * @param      {Object}  val     the value to be set
+	 * @param      {Object}  key     integer or object with a int x and int y
+	 */
 	setValue: function(val, key) {
 		var index = this._getIndex(key);
 
@@ -35,6 +72,15 @@ var Grid = Class.extend({
 		}
 	},
 
+	/**
+	 * get keys from the grid
+	 *
+	 * @method     getKeys
+	 * @param      {Object}  start      start object with int x and int y
+	 * @param      {Object}  length     length object with int width and int height
+	 * @param      {Number}  direction  optional direction to loop
+	 * @return     {Array}   an array with int accesor keys
+	 */
 	getKeys: function(start, length, direction) {
 		var keys = [],
 			i = 0;
@@ -46,6 +92,13 @@ var Grid = Class.extend({
 		return keys;
 	},
 
+	/**
+	 * getter of the saved value
+	 *
+	 * @method     getValue
+	 * @param      {Object}  key     integer or object with a int x and int y
+	 * @return     {Object}  the saved value 
+	 */
 	getValue: function(key) { return this._map[this._getIndex(key)]; },
 
 	getValues: function(keys) {
@@ -59,6 +112,13 @@ var Grid = Class.extend({
 		return vals;
 	},
 
+	/**
+	 * removes the value at the accesor key with undefined
+	 *
+	 * @method     removeValue
+	 * @param      {Object}  key     integer or object with a int x and int y
+	 * @return     {Object}  the saved value
+	 */
 	removeValue: function(key) {
 		var val = this.getValue(key);
 
@@ -78,6 +138,13 @@ var Grid = Class.extend({
 		return vals;
 	},
 
+	/**
+	 * swapes the values at the accesors
+	 *
+	 * @method     swapValue
+	 * @param      {Object}  key1    integer or object with a int x and int y
+	 * @param      {Object}  key2    integer or object with a int x and int y
+	 */
 	swapValue: function(key1, key2) {
 		var val1 = this.removeValue(key1);
 		var val2 = this.removeValue(key2);
@@ -98,6 +165,13 @@ var Grid = Class.extend({
 		}
 	},
 
+	/**
+	 * move the value to the accesor
+	 *
+	 * @method     moveValue
+	 * @param      {Object}  key1    value from integer or object with int x and int y
+	 * @param      {Object}  key2    value to integer or object with int x and int y
+	 */
 	moveValue: function(key1, key2) {
 		var val = this.removeValue(key1);
 
@@ -116,6 +190,13 @@ var Grid = Class.extend({
 		}
 	},
 
+	/**
+	 * check if there is a the value is undefined
+	 *
+	 * @method     hasValue
+	 * @param      {Object}   key     integer object with a int x and int y
+	 * @return     {boolean}  true or false
+	 */
 	hasValue: function(key) {
 		var index = this._getIndex(key);
 
@@ -140,6 +221,13 @@ var Grid = Class.extend({
 		return -1;
 	},
 
+	/**
+	 * get the coordinate at the index
+	 *
+	 * @method     getCoord
+	 * @param      {number}  index   accesor
+	 * @return     {Object}  coordinate object with int x and int y
+	 */
 	getCoord: function(index) {
 		var y = Math.floor(index / this._dimension.width);
 		var x = index - (y * this._dimension.width);
@@ -151,6 +239,15 @@ var Grid = Class.extend({
 		return { x: x, y: y };
 	},
 
+	/**
+	 * iterate through the grid with optional coordinates.
+	 *
+	 * @method     loop
+	 * @param      {Function}  callback   function with the runnable code arguments are [value] and [index]
+	 * @param      {Object}    start      optional coordinate object with int x and int y
+	 * @param      {Object}    end        optional coordinate object with int x and int y
+	 * @param      {Number}    direction  optional variable for loop direction
+	 */
 	loop: function(callback, start, end, direction) { 
 		var s = start || { x: 0, y: 0 };
 		var e = end || this._dimension;
