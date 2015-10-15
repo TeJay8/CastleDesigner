@@ -1,6 +1,6 @@
 
 ##Summary
-A castle designer program made for the game [Stronghold Kingsdoms](http://www.strongholdkingdoms.com) this is a html/javascript adaption from the Java application tool [stronghold-kingdoms-castle-designer](https://github.com/DavidATGreen/stronghold-kingdoms-castle-designer).
+A castle designer program made for the game [Stronghold Kingdoms](http://www.strongholdkingdoms.com) this is a html/javascript adaption from the Java application tool [stronghold-kingdoms-castle-designer](https://github.com/DavidATGreen/stronghold-kingdoms-castle-designer).
 
 ##Details
 Version 0.1 of the design tool. This program is at this point an alpha and should be used as such if you see any bug please report it.

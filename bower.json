@@ -1,0 +1,23 @@
+{
+  "name": "CastleDesigner",
+  "version": "0.1",
+  "homepage": "https://github.com/TeJay8/CastleDesigner",
+  "authors": [
+    "TeJay8 <t33j2y@gmail.com>"
+  ],
+  "description": "A castle designer program made for the game Stronghold Kingdoms",
+  "main": "",
+  "moduleType": [],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "1.11.1",
+    "konva": "~0.9.5"
+  }
+}
